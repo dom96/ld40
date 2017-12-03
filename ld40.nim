@@ -14,6 +14,7 @@ type
     camera: View
     crosshair: Crosshair
     hud: Hud
+    truck: Truck
 
   Neighbour = tuple
     stop: MapStop
@@ -24,6 +25,7 @@ type
     pos: Vector2i # Relative to map
     neighbours: seq[Neighbour]
     isDepot: bool
+    isSelected: bool
 
   Map = ref object
     texture: Texture
@@ -32,13 +34,15 @@ type
     deselectedMapStop: Texture
     stops: seq[MapStop]
 
-    selectedStops: seq[MapStop]
-
   Crosshair = ref object
     texture: Texture
 
   Hud = ref object
     currentRoute: Text
+
+  Truck = ref object
+    fuelCapacity: int
+    currentStop: MapStop
 
 proc createMapStop(map: Map, name: string, pos: Vector2i): MapStop =
   map.stops.add(
@@ -70,22 +74,42 @@ proc newMap(filename: string): Map =
     sprite: newSprite(),
     selectedMapStop: newTexture(filename.splitFile.dir / "selected_stop.png"),
     deselectedMapStop: newTexture(filename.splitFile.dir / "deselected_stop.png"),
-    stops: @[],
-    selectedStops: @[]
-
+    stops: @[]
   )
   result.texture.smooth = false
   result.sprite.texture = result.texture
 
   # Define default map stops.
-  let supermarket = createMapStop(result, "Supermarket", vec2(144, 150))
-  let lighthouse = createMapStop(result, "Lighthouse", vec2(368, 150))
+  let residence = createMapStop(result, "The Roswell Residence", vec2(142, 150))
+  let lighthouse = createMapStop(result, "Lighthouse", vec2(367, 150))
   let postOffice = createMapStop(result, "Post Office", vec2(620, 150))
   postOffice.isDepot = true
+  let hospital = createMapStop(result, "Hospital", vec2(474, 261))
+  let supermarket = createMapStop(result, "Supermarket", vec2(366, 317))
+  let beach = createMapStop(result, "Beach", vec2(630, 262))
+  let residence2 = createMapStop(result, "Residence", vec2(499, 420))
+  let residence3 = createMapStop(result, "Residence", vec2(638, 543))
+  let fuelStation = createMapStop(result, "Fuel station", vec2(499, 647))
+  let southDocks = createMapStop(result, "South docks", vec2(202, 647))
+  let cafe = createMapStop(result, "Cafe Mauds", vec2(186, 431))
 
   postOffice.link(lighthouse, 2)
-  lighthouse.link(supermarket, 1)
+  lighthouse.link(residence, 1)
+  residence.link(cafe, 1)
+  cafe.link(supermarket, 1)
+  cafe.link(southDocks, 1)
+  supermarket.link(lighthouse, 1)
+  supermarket.link(hospital, 1)
+  supermarket.link(residence2, 1)
+  residence2.link(beach, 1)
+  residence2.link(residence3, 1)
+  beach.link(residence3, 1)
+  beach.link(postOffice, 1)
+  residence3.link(fuelStation, 1)
+  fuelStation.link(southDocks, 1)
 
+  # Select post office by default.
+  postOffice.isSelected = true
 
 proc draw(map: Map, target: RenderWindow) =
   target.draw(map.sprite)
@@ -96,11 +120,17 @@ proc draw(map: Map, target: RenderWindow) =
     let sprite = newSprite()
     sprite.origin = vec2(16, 16)
     sprite.position = stop.pos
-    if stop in map.selectedStops:
+    if stop.isSelected:
       sprite.texture = map.selectedMapStop
+      sprite.position = sprite.position + vec2(0.0, 4.0)
     else:
       sprite.texture = map.deselectedMapStop
     target.draw(sprite)
+
+proc getStart(map: Map): MapStop =
+  for stop in map.stops:
+    if stop.isDepot:
+      return stop
 
 proc newCrosshair(filename: string): Crosshair =
   result = Crosshair(
@@ -128,7 +158,6 @@ proc newHud(): Hud =
   result.currentRoute.position = vec2(10, 10)
 
 proc draw(hud: Hud, target: RenderWindow) =
-  let color = "5f574f"
   let fill = newRectangleShape(vec2(screenSize[0], 40))
   fill.position = vec2(0, 0)
   fill.fillColor = color(0x5f574fff)
@@ -138,6 +167,15 @@ proc draw(hud: Hud, target: RenderWindow) =
   target.draw(fill)
 
   target.draw(hud.currentRoute)
+
+proc newTruck(start: MapStop, fuelCapacity=5): Truck =
+  result = Truck(
+    fuelCapacity: fuelCapacity,
+    currentStop: start
+  )
+
+proc centerCameraOn(game: Game, stop: MapStop) =
+  game.camera.center = stop.pos
 
 proc newGame(): Game =
   result = Game(
@@ -149,11 +187,15 @@ proc newGame(): Game =
     hud: newHud()
   )
 
+  result.truck = newTruck(getStart(result.currentMap))
+
   result.camera.zoom(0.5)
   result.window.framerateLimit = 60
 
+  result.centerCameraOn(result.truck.currentStop)
+
 proc draw(game: Game) =
-  game.window.clear(Black)
+  game.window.clear(color(0x19abffff))
 
   game.window.view = game.camera
   game.currentMap.draw(game.window)
@@ -184,21 +226,12 @@ proc select(game: Game) =
     echo("Not found")
   else:
     echo("Selected ", closest.name)
-    let index = rfind(game.currentMap.selectedStops, closest)
-    if index != -1:
-      # Remove the last one of this.
-      game.currentMap.selectedStops.delete(index)
-    else:
-      game.currentMap.selectedStops.add(closest)
+    closest.isSelected = not closest.isSelected
 
 proc update(game: Game) =
   # Generate the current route.
-  var text = "Route: "
-  if game.currentMap.selectedStops.len > 0:
-    for stop in game.currentMap.selectedStops:
-      text.add(stop.name & " > ")
-  else:
-    text.add("No route selected")
+  var text = "Fuel: "
+  text.add("No route selected") # TODO: Change this into a message system.
 
   game.hud.currentRoute.strC = text
 

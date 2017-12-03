@@ -7,7 +7,7 @@ import utils
 const screenSize = (1024, 1024)
 const mapStopSize = (32, 32)
 const messageDisappearTimeout = 700 # ms
-const textPulse = 400 # ms
+const textPulse = 800 # ms
 
 type
   Scene {.pure.} = enum
@@ -17,7 +17,7 @@ type
     titleTexture: Texture
     titleClock: Clock
     titleText: Text
-    lastScale: float
+    lastTransparency: float
 
   Game = ref object
     window: RenderWindow
@@ -281,7 +281,7 @@ proc newTitle(font: Font): Title =
   result = Title(
     titleTexture: newTexture(getCurrentDir() / "assets" / "title.png"),
     titleClock: newClock(),
-    lastScale: 1
+    lastTransparency: 0.5
   )
 
   result.titleText = newText("Press space to begin", font, 20)
@@ -306,13 +306,15 @@ proc draw(title: Title, target: RenderWindow) =
 
   var scale = (title.titleClock.elapsedTime().asMilliseconds() / textPulse) / 2
   if title.titleClock.elapsedTime().asMilliseconds() <= textPulse:
-    if (title.lastScale-1) >= 0.09:
-      title.titleText.scale = vec2(title.lastScale - scale, title.lastScale - scale)
+    var transparency = 0.5
+    if (title.lastTransparency-0.5) >= 0.09:
+      transparency = title.lastTransparency - scale
     else:
-      title.titleText.scale = vec2(title.lastScale + scale, title.lastScale + scale)
+      transparency = title.lastTransparency + scale
+    title.titleText.color = color(255.uint8, 255.uint8, 255.uint8, uint8(transparency*255))
   else:
     discard title.titleClock.restart()
-    title.lastScale = title.titleText.scale.x
+    title.lastTransparency = title.titleText.color.a.int / 255
 
   target.draw(sprite)
   target.draw(title.titleText)

@@ -7,8 +7,18 @@ import utils
 const screenSize = (1024, 1024)
 const mapStopSize = (32, 32)
 const messageDisappearTimeout = 700 # ms
+const textPulse = 400 # ms
 
 type
+  Scene {.pure.} = enum
+    Map, Title
+
+  Title = ref object
+    titleTexture: Texture
+    titleClock: Clock
+    titleText: Text
+    lastScale: float
+
   Game = ref object
     window: RenderWindow
     currentMap: Map
@@ -16,6 +26,8 @@ type
     crosshair: Crosshair
     hud: Hud
     truck: Truck
+    currentScene: Scene
+    title: Title
 
   Neighbour = tuple
     stop: MapStop
@@ -265,6 +277,48 @@ proc newTruck(start: MapStop, fuelCapacity=5): Truck =
 proc centerCameraOn(game: Game, stop: MapStop) =
   game.camera.center = stop.pos
 
+proc newTitle(font: Font): Title =
+  result = Title(
+    titleTexture: newTexture(getCurrentDir() / "assets" / "title.png"),
+    titleClock: newClock(),
+    lastScale: 1
+  )
+
+  result.titleText = newText("Press space to begin", font, 20)
+  result.titleText.position = vec2(
+    screenSize[0] div 2,
+    screenSize[1] - 200
+  )
+  result.titleText.origin = vec2(
+    result.titleText.localBounds.width / 2,
+    result.titleText.localBounds.height / 2
+  )
+
+proc draw(title: Title, target: RenderWindow) =
+  target.clear(color(0x1d3564ff))
+
+  let sprite = newSprite(title.titleTexture)
+  sprite.scale = vec2(
+    screenSize[0] / title.titleTexture.size.x,
+    screenSize[1] / title.titleTexture.size.y
+  )
+  target.draw(sprite)
+
+  var scale = (title.titleClock.elapsedTime().asMilliseconds() / textPulse) / 2
+  if title.titleClock.elapsedTime().asMilliseconds() <= textPulse:
+    if (title.lastScale-1) >= 0.09:
+      title.titleText.scale = vec2(title.lastScale - scale, title.lastScale - scale)
+    else:
+      title.titleText.scale = vec2(title.lastScale + scale, title.lastScale + scale)
+  else:
+    discard title.titleClock.restart()
+    title.lastScale = title.titleText.scale.x
+
+  target.draw(sprite)
+  target.draw(title.titleText)
+
+  destroy(sprite)
+
 proc newGame(): Game =
   result = Game(
     window: newRenderWindow(videoMode(screenSize[0], screenSize[1]), "LD40",
@@ -272,7 +326,8 @@ proc newGame(): Game =
     currentMap: newMap(getCurrentDir() / "assets" / "map.png"),
     crosshair: newCrosshair(getCurrentDir() / "assets" / "crosshair.png"),
     camera: newView(),
-    hud: newHud()
+    hud: newHud(),
+    currentScene: Scene.Title,
   )
 
   result.truck = newTruck(getStart(result.currentMap))
@@ -282,15 +337,20 @@ proc newGame(): Game =
 
   result.centerCameraOn(result.truck.currentStop)
 
+  result.title = newTitle(result.hud.font)
+
 proc draw(game: Game) =
-  game.window.clear(color(0x19abffff))
+  case game.currentScene
+  of Scene.Map:
+    game.window.clear(color(0x19abffff))
+    game.window.view = game.camera
+    game.currentMap.draw(game.window)
 
-  game.window.view = game.camera
-  game.currentMap.draw(game.window)
-
-  game.window.view = game.window.defaultView()
-  game.crosshair.draw(game.window)
-  game.hud.draw(game.window)
+    game.window.view = game.window.defaultView()
+    game.crosshair.draw(game.window)
+    game.hud.draw(game.window)
+  of Scene.Title:
+    game.title.draw(game.window)
 
   game.window.display()
 

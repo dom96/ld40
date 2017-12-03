@@ -13,6 +13,7 @@ type
     currentMap: Map
     camera: View
     crosshair: Crosshair
+    hud: Hud
 
   Neighbour = tuple
     stop: MapStop
@@ -35,6 +36,9 @@ type
 
   Crosshair = ref object
     texture: Texture
+
+  Hud = ref object
+    currentRoute: Text
 
 proc createMapStop(map: Map, name: string, pos: Vector2i): MapStop =
   map.stops.add(
@@ -68,6 +72,7 @@ proc newMap(filename: string): Map =
     deselectedMapStop: newTexture(filename.splitFile.dir / "deselected_stop.png"),
     stops: @[],
     selectedStops: @[]
+
   )
   result.texture.smooth = false
   result.sprite.texture = result.texture
@@ -114,6 +119,26 @@ proc draw(crosshair: Crosshair, target: RenderWindow) =
   sprite.scale = vec2(3, 3)
   target.draw(sprite)
 
+proc newHud(): Hud =
+  let font = newFont(getCurrentDir() / "assets" / "PICO-8.ttf")
+  result = Hud(
+    currentRoute: newText("Route: No route selected", font)
+  )
+  result.currentRoute.characterSize = 14
+  result.currentRoute.position = vec2(10, 10)
+
+proc draw(hud: Hud, target: RenderWindow) =
+  let color = "5f574f"
+  let fill = newRectangleShape(vec2(screenSize[0], 40))
+  fill.position = vec2(0, 0)
+  fill.fillColor = color(0x5f574fff)
+  fill.outlineColor = color(0x5f574faa)
+  fill.outlineThickness = 2
+
+  target.draw(fill)
+
+  target.draw(hud.currentRoute)
+
 proc newGame(): Game =
   result = Game(
     window: newRenderWindow(videoMode(screenSize[0], screenSize[1]), "LD40",
@@ -121,6 +146,7 @@ proc newGame(): Game =
     currentMap: newMap(getCurrentDir() / "assets" / "map.png"),
     crosshair: newCrosshair(getCurrentDir() / "assets" / "crosshair.png"),
     camera: newView(),
+    hud: newHud()
   )
 
   result.camera.zoom(0.5)
@@ -134,6 +160,7 @@ proc draw(game: Game) =
 
   game.window.view = game.window.defaultView()
   game.crosshair.draw(game.window)
+  game.hud.draw(game.window)
 
   game.window.display()
 
@@ -164,6 +191,17 @@ proc select(game: Game) =
     else:
       game.currentMap.selectedStops.add(closest)
 
+proc update(game: Game) =
+  # Generate the current route.
+  var text = "Route: "
+  if game.currentMap.selectedStops.len > 0:
+    for stop in game.currentMap.selectedStops:
+      text.add(stop.name & " > ")
+  else:
+    text.add("No route selected")
+
+  game.hud.currentRoute.strC = text
+
 when isMainModule:
   var game = newGame()
 
@@ -187,5 +225,6 @@ when isMainModule:
           game.select()
         else: discard
 
+    game.update()
     game.draw()
 

@@ -1,6 +1,6 @@
 import os
 
-import csfml, csfml_ext
+import csfml, csfml_ext, csfml_window
 
 import utils
 
@@ -28,7 +28,8 @@ proc draw(map: Map, target: RenderWindow) =
 
 proc newGame(): Game =
   result = Game(
-    window: newRenderWindow(videoMode(screenSize[0], screenSize[1]), "LD40"),
+    window: newRenderWindow(videoMode(screenSize[0], screenSize[1]), "LD40",
+                            WindowStyle.Titlebar or WindowStyle.Close),
     currentMap: newMap(getCurrentDir() / "assets" / "map.png")
   )
 

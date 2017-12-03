@@ -1,32 +1,51 @@
-import nico
-import math
+import os
 
-import vec, utils
+import csfml, csfml_ext
 
-proc gameInit() =
-  discard
+import utils
 
-proc gameUpdate(dt: float) =
-  discard
+const screenSize = (1024, 1024)
 
-proc gameDraw() =
-  setColor(1)
-  rectfill(0, 0, screenWidth, screenHeight)
+type
+  Game = ref object
+    window: RenderWindow
+    currentMap: Map
 
-  # Show pallette
-  for i in 0..<16:
-    setColor(i)
-    fill(Rect(pos: (i*8, 50), size: (2, 4)))
+  Map = ref object
+    texture: Texture
+    sprite: Sprite
 
-# initialization
-nico.init("nico", "test")
+proc newMap(filename: string): Map =
+  result = Map(
+    texture: newTexture(filename),
+    sprite: newSprite()
+  )
+  result.texture.smooth = false
+  result.sprite.texture = result.texture
 
-# we want a fixed sized screen with perfect square pixels
-fixedSize(true)
-integerScale(true)
+proc draw(map: Map, target: RenderWindow) =
+  target.draw(map.sprite)
 
-# create the window
-nico.createWindow("LD40", 128, 128, 4)
+proc newGame(): Game =
+  result = Game(
+    window: newRenderWindow(videoMode(screenSize[0], screenSize[1]), "LD40"),
+    currentMap: newMap(getCurrentDir() / "assets" / "map.png")
+  )
 
-# start, say which functions to use for init, update and draw
-nico.run(gameInit, gameUpdate, gameDraw)
+proc draw(game: Game) =
+  game.window.clear(Black)
+  game.currentMap.draw(game.window)
+
+  game.window.display()
+
+when isMainModule:
+  var game = newGame()
+
+  while game.window.open:
+    for event in game.window.events:
+      if event.kind == EventType.Closed or
+        (event.kind == EventType.KeyPressed and event.key.code == KeyCode.Escape):
+          game.window.close()
+
+    game.draw()
+

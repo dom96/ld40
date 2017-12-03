@@ -5,6 +5,7 @@ import csfml, csfml_ext, csfml_window
 import utils
 
 const screenSize = (1024, 1024)
+const mapStopSize = (32, 32)
 
 type
   Game = ref object
@@ -51,6 +52,14 @@ proc link(a, b: MapStop, fuelCost: int) =
   a.neighbours.add((b, fuelCost))
   b.neighbours.add((a, fuelCost))
 
+proc getBoundingBox(a: MapStop): IntRect =
+  return IntRect(
+    left: a.pos.x - (mapStopSize[0] div 2),
+    top: a.pos.y - (mapStopSize[1] div 2),
+    width: mapStopSize[0],
+    height: mapStopSize[1]
+  )
+
 proc newMap(filename: string): Map =
   result = Map(
     texture: newTexture(filename),
@@ -93,12 +102,15 @@ proc newCrosshair(filename: string): Crosshair =
     texture: newTexture(filename)
   )
 
+proc getWindowPos(crosshair: Crosshair): Vector2i =
+  vec2(screenSize[0] div 2, screenSize[1] div 2)
+
 proc draw(crosshair: Crosshair, target: RenderWindow) =
   # Cross hair
   let sprite = newSprite()
   sprite.texture = crosshair.texture
   sprite.origin = vec2(16, 16)
-  sprite.position = vec2(screenSize[0] div 2, screenSize[1] div 2)
+  sprite.position = getWindowPos(crosshair)
   sprite.scale = vec2(3, 3)
   target.draw(sprite)
 
@@ -128,6 +140,30 @@ proc draw(game: Game) =
 proc moveCamera(game: Game, dir: Vector2f, mag=16.0) =
   game.camera.move(dir*mag)
 
+proc select(game: Game) =
+  ## Selects a stop that's under the crosshair.
+  let crosshairPos = game.window.mapPixelToCoords(getWindowPos(game.crosshair), game.camera)
+  echo("Select at ", crosshairPos)
+
+  # We need to find the closest stop.
+  var closest: MapStop = nil
+  for stop in game.currentMap.stops:
+    let box = stop.getBoundingBox()
+    if box.contains(crosshairPos.x, crosshairPos.y):
+      closest = stop
+      break # TODO: Let's hope there are no stops right beside each other...
+
+  if closest.isNil:
+    echo("Not found")
+  else:
+    echo("Selected ", closest.name)
+    let index = rfind(game.currentMap.selectedStops, closest)
+    if index != -1:
+      # Remove the last one of this.
+      game.currentMap.selectedStops.delete(index)
+    else:
+      game.currentMap.selectedStops.add(closest)
+
 when isMainModule:
   var game = newGame()
 
@@ -147,6 +183,8 @@ when isMainModule:
           game.moveCamera(vec2(0, 1))
         of KeyCode.Up:
           game.moveCamera(vec2(0, -1))
+        of KeyCode.Space:
+          game.select()
         else: discard
 
     game.draw()

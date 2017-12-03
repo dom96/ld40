@@ -12,8 +12,6 @@ type
     currentMap: Map
     camera: View
 
-    selectedStops: seq[MapStop]
-
   Neighbour = tuple
     stop: MapStop
     fuelCost: int
@@ -27,7 +25,11 @@ type
   Map = ref object
     texture: Texture
     sprite: Sprite
+    selectedMapStop: Texture
+    deselectedMapStop: Texture
     stops: seq[MapStop]
+
+    selectedStops: seq[MapStop]
 
 proc createMapStop(map: Map, name: string, pos: Vector2i): MapStop =
   map.stops.add(
@@ -49,7 +51,10 @@ proc newMap(filename: string): Map =
   result = Map(
     texture: newTexture(filename),
     sprite: newSprite(),
-    stops: @[]
+    selectedMapStop: newTexture(filename.splitFile.dir / "selected_stop.png"),
+    deselectedMapStop: newTexture(filename.splitFile.dir / "deselected_stop.png"),
+    stops: @[],
+    selectedStops: @[]
   )
   result.texture.smooth = false
   result.sprite.texture = result.texture
@@ -67,13 +72,24 @@ proc newMap(filename: string): Map =
 proc draw(map: Map, target: RenderWindow) =
   target.draw(map.sprite)
 
+  # Draw each map stop sprite.
+  # TODO: Should we recycle sprites?
+  for stop in map.stops:
+    let sprite = newSprite()
+    sprite.origin = vec2(16, 16)
+    sprite.position = stop.pos
+    if stop in map.selectedStops:
+      sprite.texture = map.selectedMapStop
+    else:
+      sprite.texture = map.deselectedMapStop
+    target.draw(sprite)
+
 proc newGame(): Game =
   result = Game(
     window: newRenderWindow(videoMode(screenSize[0], screenSize[1]), "LD40",
                             WindowStyle.Titlebar or WindowStyle.Close),
     currentMap: newMap(getCurrentDir() / "assets" / "map.png"),
     camera: newView(),
-    selectedStops: @[]
   )
 
   result.camera.zoom(0.5)

@@ -135,6 +135,7 @@ proc draw(map: Map, target: RenderWindow) =
     else:
       sprite.texture = map.deselectedMapStop
     target.draw(sprite)
+    sprite.destroy()
 
 proc getStart(map: Map): MapStop =
   for stop in map.stops:
@@ -160,6 +161,7 @@ proc draw(crosshair: Crosshair, target: RenderWindow) =
   sprite.position = getWindowPos(crosshair)
   sprite.scale = vec2(3, 3)
   target.draw(sprite)
+  sprite.destroy()
 
 proc newHud(): Hud =
   let font = newFont(getCurrentDir() / "assets" / "PICO-8.ttf")
@@ -213,7 +215,8 @@ proc draw(hud: Hud, target: RenderWindow) =
     target.draw(fill)
     target.draw(text)
 
-    # TODO: destroy the objects you created.
+    fill.destroy()
+    text.destroy()
 
   if not hud.primaryMessage.isNil:
     drawMessage(hud.primaryMessage, isPrimary=true)

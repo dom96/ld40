@@ -12,17 +12,57 @@ type
     currentMap: Map
     camera: View
 
+    selectedStops: seq[MapStop]
+
+  Neighbour = tuple
+    stop: MapStop
+    fuelCost: int
+
+  MapStop = ref object
+    name: string
+    pos: Vector2i # Relative to map
+    neighbours: seq[Neighbour]
+    isDepot: bool
+
   Map = ref object
     texture: Texture
     sprite: Sprite
+    stops: seq[MapStop]
+
+proc createMapStop(map: Map, name: string, pos: Vector2i): MapStop =
+  map.stops.add(
+    MapStop(
+      name: name,
+      pos: pos,
+      neighbours: @[]
+    )
+  )
+
+  return map.stops[^1]
+
+proc link(a, b: MapStop, fuelCost: int) =
+  ## Links two MapStops togethers.
+  a.neighbours.add((b, fuelCost))
+  b.neighbours.add((a, fuelCost))
 
 proc newMap(filename: string): Map =
   result = Map(
     texture: newTexture(filename),
-    sprite: newSprite()
+    sprite: newSprite(),
+    stops: @[]
   )
   result.texture.smooth = false
   result.sprite.texture = result.texture
+
+  # Define default map stops.
+  let supermarket = createMapStop(result, "Supermarket", vec2(144, 150))
+  let lighthouse = createMapStop(result, "Lighthouse", vec2(368, 150))
+  let postOffice = createMapStop(result, "Post Office", vec2(620, 150))
+  postOffice.isDepot = true
+
+  postOffice.link(lighthouse, 2)
+  lighthouse.link(supermarket, 1)
+
 
 proc draw(map: Map, target: RenderWindow) =
   target.draw(map.sprite)
@@ -32,7 +72,8 @@ proc newGame(): Game =
     window: newRenderWindow(videoMode(screenSize[0], screenSize[1]), "LD40",
                             WindowStyle.Titlebar or WindowStyle.Close),
     currentMap: newMap(getCurrentDir() / "assets" / "map.png"),
-    camera: newView()
+    camera: newView(),
+    selectedStops: @[]
   )
 
   result.camera.zoom(0.5)

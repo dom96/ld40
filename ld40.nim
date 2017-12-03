@@ -11,6 +11,7 @@ type
     window: RenderWindow
     currentMap: Map
     camera: View
+    crosshair: Crosshair
 
   Neighbour = tuple
     stop: MapStop
@@ -30,6 +31,9 @@ type
     stops: seq[MapStop]
 
     selectedStops: seq[MapStop]
+
+  Crosshair = ref object
+    texture: Texture
 
 proc createMapStop(map: Map, name: string, pos: Vector2i): MapStop =
   map.stops.add(
@@ -84,11 +88,26 @@ proc draw(map: Map, target: RenderWindow) =
       sprite.texture = map.deselectedMapStop
     target.draw(sprite)
 
+proc newCrosshair(filename: string): Crosshair =
+  result = Crosshair(
+    texture: newTexture(filename)
+  )
+
+proc draw(crosshair: Crosshair, target: RenderWindow) =
+  # Cross hair
+  let sprite = newSprite()
+  sprite.texture = crosshair.texture
+  sprite.origin = vec2(16, 16)
+  sprite.position = vec2(screenSize[0] div 2, screenSize[1] div 2)
+  sprite.scale = vec2(3, 3)
+  target.draw(sprite)
+
 proc newGame(): Game =
   result = Game(
     window: newRenderWindow(videoMode(screenSize[0], screenSize[1]), "LD40",
                             WindowStyle.Titlebar or WindowStyle.Close),
     currentMap: newMap(getCurrentDir() / "assets" / "map.png"),
+    crosshair: newCrosshair(getCurrentDir() / "assets" / "crosshair.png"),
     camera: newView(),
   )
 
@@ -97,9 +116,12 @@ proc newGame(): Game =
 
 proc draw(game: Game) =
   game.window.clear(Black)
-  game.currentMap.draw(game.window)
 
   game.window.view = game.camera
+  game.currentMap.draw(game.window)
+
+  game.window.view = game.window.defaultView()
+  game.crosshair.draw(game.window)
 
   game.window.display()
 

@@ -171,11 +171,21 @@ proc newHud(): Hud =
   result.currentRoute.position = vec2(10, 10)
 
 proc draw(hud: Hud, target: RenderWindow) =
-  if not hud.primaryMessage.isNil:
-    let message = hud.primaryMessage
-    let margin = (screenSize[0] div 6)
-    let fill = newRectangleShape(vec2(screenSize[0] - margin, 100))
-    let fillPos = vec2(margin div 2, 50)
+  template drawMessage(message: Message, isPrimary: bool) =
+    let margin = (screenSize[0] div 6) +
+      (if isPrimary: 0 else: screenSize[0] div 12)
+    const primaryHeight = 100
+    let fill = newRectangleShape(vec2(
+      screenSize[0] - margin,
+      if isPrimary: primaryHeight else: 50
+    ))
+    var fillPos = vec2(
+      margin div 2,
+      50
+    )
+    if not isPrimary and (not hud.primaryMessage.isNil):
+      # Move message underneath primary message
+      fillPos.y += primaryHeight + fillPos.y
     fill.position = fillPos
 
     # We need this so that the scaling happens from the middle.
@@ -203,24 +213,35 @@ proc draw(hud: Hud, target: RenderWindow) =
     target.draw(fill)
     target.draw(text)
 
+    # TODO: destroy the objects you created.
 
-proc setPrimaryMessage(hud: Hud, text: string, timeout = -1) =
-  hud.primaryMessage = Message(
+  if not hud.primaryMessage.isNil:
+    drawMessage(hud.primaryMessage, isPrimary=true)
+  if not hud.secondaryMessage.isNil:
+    drawMessage(hud.secondaryMessage, isPrimary=false)
+
+proc setMessage(hud: Hud, text: string, timeout = -1, primary=true) =
+  let message = Message(
     text: text,
     timeout: timeout
   )
 
-  hud.primaryMessage.clock = newClock()
+  message.clock = newClock()
+  if primary:
+    hud.primaryMessage = message
+  else:
+    hud.secondaryMessage = message
 
-proc removePrimaryMessage(hud: Hud) =
-  if not hud.primaryMessage.isNil:
-    let diff = hud.primaryMessage.clock.elapsedTime().asMilliseconds() - messageDisappearTimeout
+proc removeMessage(hud: Hud, primary: bool) =
+  let message = if primary: hud.primaryMessage else: hud.secondaryMessage
+  if not message.isNil:
+    let diff = message.clock.elapsedTime().asMilliseconds() - messageDisappearTimeout
     # If the primary message will already expire before the messageDisappearTimeout.
     # So don't reset it.
     if diff < 0: return
 
-    discard hud.primaryMessage.clock.restart()
-    hud.primaryMessage.timeout = messageDisappearTimeout
+    discard message.clock.restart()
+    message.timeout = messageDisappearTimeout
 
 proc update(hud: Hud) =
   # Using addr here is a bit hacky, but then again this is Ludum Dare.
@@ -289,16 +310,16 @@ proc moveCamera(game: Game, dir: Vector2f, mag=16.0) =
   # Show primary message when hovered over button.
   let closest = game.getHoveredMapStop()
   if closest.isNil:
-    game.hud.removePrimaryMessage()
+    game.hud.removeMessage(primary=true)
   else:
-    game.hud.setPrimaryMessage(closest.name)
+    game.hud.setMessage(closest.name, primary=true)
 
 proc select(game: Game) =
   ## Selects a stop that's under the crosshair.
   let closest = game.getHoveredMapStop()
 
   if closest.isNil:
-    echo("Not found")
+    game.hud.setMessage("No stop under cursor.", timeout=2000, primary=false)
   else:
     echo("Selected ", closest.name)
     closest.isSelected = not closest.isSelected

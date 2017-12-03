@@ -11,3 +11,7 @@ proc rfind*[T](a: seq[T], item: T): int =
   for i in countdown(a.len-1, 0):
     if a[i] == item:
       return i
+
+proc scaleMiddle*[T](a: T, size: Vector2f) =
+  a.origin = vec2(size.x / 2, size.y / 2)
+  a.position = vec2(a.position.x + a.origin.x, a.position.y + a.origin.y)

@@ -1,4 +1,4 @@
-import os
+import os, math
 
 import csfml, csfml_ext, csfml_window
 
@@ -6,6 +6,7 @@ import utils
 
 const screenSize = (1024, 1024)
 const mapStopSize = (32, 32)
+const messageDisappearTimeout = 700 # ms
 
 type
   Game = ref object
@@ -37,8 +38,16 @@ type
   Crosshair = ref object
     texture: Texture
 
+  Message = ref object
+    text: string
+    clock: Clock
+    timeout: int # ms, -1 for infinite
+
   Hud = ref object
     currentRoute: Text
+    font: Font
+    primaryMessage: Message
+    secondaryMessage: Message
 
   Truck = ref object
     fuelCapacity: int
@@ -140,6 +149,9 @@ proc newCrosshair(filename: string): Crosshair =
 proc getWindowPos(crosshair: Crosshair): Vector2i =
   vec2(screenSize[0] div 2, screenSize[1] div 2)
 
+proc getMapPos(crosshair: Crosshair, game: Game): Vector2f =
+  game.window.mapPixelToCoords(getWindowPos(crosshair), game.camera)
+
 proc draw(crosshair: Crosshair, target: RenderWindow) =
   # Cross hair
   let sprite = newSprite()
@@ -152,21 +164,73 @@ proc draw(crosshair: Crosshair, target: RenderWindow) =
 proc newHud(): Hud =
   let font = newFont(getCurrentDir() / "assets" / "PICO-8.ttf")
   result = Hud(
-    currentRoute: newText("Route: No route selected", font)
+    currentRoute: newText("Route: No route selected", font),
+    font: font
   )
   result.currentRoute.characterSize = 14
   result.currentRoute.position = vec2(10, 10)
 
 proc draw(hud: Hud, target: RenderWindow) =
-  let fill = newRectangleShape(vec2(screenSize[0], 40))
-  fill.position = vec2(0, 0)
-  fill.fillColor = color(0x5f574fff)
-  fill.outlineColor = color(0x5f574faa)
-  fill.outlineThickness = 2
+  if not hud.primaryMessage.isNil:
+    let message = hud.primaryMessage
+    let margin = (screenSize[0] div 6)
+    let fill = newRectangleShape(vec2(screenSize[0] - margin, 100))
+    let fillPos = vec2(margin div 2, 50)
+    fill.position = fillPos
 
-  target.draw(fill)
+    # We need this so that the scaling happens from the middle.
+    scaleMiddle(fill, fill.size)
 
-  target.draw(hud.currentRoute)
+    fill.fillColor = color(0x5f574fff)
+    fill.outlineColor = color(0x5f574faa)
+    fill.outlineThickness = 4
+
+    let text = newText(message.text, hud.font, 20)
+    text.position = vec2(
+      fillPos.x + (fill.size.x.int div 2),
+      fillPos.y + (fill.size.y.int div 2),
+    )
+    text.origin = vec2(text.localBounds.width / 2, text.localBounds.height / 2)
+
+    if message.timeout != -1:
+      let diff = message.timeout - message.clock.elapsedTime().asMilliseconds()
+      if diff <= messageDisappearTimeout:
+        # Scale down the message to make it disappear.
+        let scale = round(diff / messageDisappearTimeout, 1)
+        fill.scale = vec2(scale, scale)
+        text.scale = vec2(scale, scale)
+
+    target.draw(fill)
+    target.draw(text)
+
+
+proc setPrimaryMessage(hud: Hud, text: string, timeout = -1) =
+  hud.primaryMessage = Message(
+    text: text,
+    timeout: timeout
+  )
+
+  hud.primaryMessage.clock = newClock()
+
+proc removePrimaryMessage(hud: Hud) =
+  if not hud.primaryMessage.isNil:
+    let diff = hud.primaryMessage.clock.elapsedTime().asMilliseconds() - messageDisappearTimeout
+    # If the primary message will already expire before the messageDisappearTimeout.
+    # So don't reset it.
+    if diff < 0: return
+
+    discard hud.primaryMessage.clock.restart()
+    hud.primaryMessage.timeout = messageDisappearTimeout
+
+proc update(hud: Hud) =
+  # Using addr here is a bit hacky, but then again this is Ludum Dare.
+  for message in [addr hud.primaryMessage, addr hud.secondaryMessage]:
+    if not message[].isNil:
+      if message.timeout != -1:
+        if message.clock.elapsedTime().asMilliseconds() >=
+            message.timeout:
+          message[] = nil
+
 
 proc newTruck(start: MapStop, fuelCapacity=5): Truck =
   result = Truck(
@@ -206,13 +270,9 @@ proc draw(game: Game) =
 
   game.window.display()
 
-proc moveCamera(game: Game, dir: Vector2f, mag=16.0) =
-  game.camera.move(dir*mag)
-
-proc select(game: Game) =
-  ## Selects a stop that's under the crosshair.
-  let crosshairPos = game.window.mapPixelToCoords(getWindowPos(game.crosshair), game.camera)
-  echo("Select at ", crosshairPos)
+proc getHoveredMapStop(game: Game): MapStop =
+  ## Returns nil when nothing is under the crosshair.
+  let crosshairPos = game.crosshair.getMapPos(game)
 
   # We need to find the closest stop.
   var closest: MapStop = nil
@@ -221,6 +281,21 @@ proc select(game: Game) =
     if box.contains(crosshairPos.x, crosshairPos.y):
       closest = stop
       break # TODO: Let's hope there are no stops right beside each other...
+  return closest
+
+proc moveCamera(game: Game, dir: Vector2f, mag=16.0) =
+  game.camera.move(dir*mag)
+
+  # Show primary message when hovered over button.
+  let closest = game.getHoveredMapStop()
+  if closest.isNil:
+    game.hud.removePrimaryMessage()
+  else:
+    game.hud.setPrimaryMessage(closest.name)
+
+proc select(game: Game) =
+  ## Selects a stop that's under the crosshair.
+  let closest = game.getHoveredMapStop()
 
   if closest.isNil:
     echo("Not found")
@@ -230,10 +305,7 @@ proc select(game: Game) =
 
 proc update(game: Game) =
   # Generate the current route.
-  var text = "Fuel: "
-  text.add("No route selected") # TODO: Change this into a message system.
-
-  game.hud.currentRoute.strC = text
+  game.hud.update()
 
 when isMainModule:
   var game = newGame()

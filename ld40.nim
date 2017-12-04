@@ -1,4 +1,4 @@
-import os, math
+import os, math, strutils
 
 import csfml, csfml_ext, csfml_window
 
@@ -24,9 +24,17 @@ type
     currentScene: Scene
     title: Title
 
+  Direction = enum
+    North, East, South, West
+
+  Road = tuple
+    start, finish: Vector2i
+    dir: Direction
+
   Neighbour = tuple
     stop: MapStop
     fuelCost: int
+    roads: seq[Road]
 
   MapStop = ref object
     name: string
@@ -48,6 +56,11 @@ type
   Truck = ref object
     fuelCapacity: int
     currentStop: MapStop
+    pos: Vector2f
+    dir: Direction
+    truckTexture: array[Direction, Texture]
+    travellingTo: Neighbour
+    roadTravelClock: Clock
 
 proc createMapStop(map: Map, name: string, pos: Vector2i): MapStop =
   map.stops.add(
@@ -60,10 +73,25 @@ proc createMapStop(map: Map, name: string, pos: Vector2i): MapStop =
 
   return map.stops[^1]
 
-proc link(a, b: MapStop, fuelCost: int) =
+proc link(a, b: MapStop, fuelCost: int, roads: seq[Road] = @[]) =
   ## Links two MapStops togethers.
-  a.neighbours.add((b, fuelCost))
-  b.neighbours.add((a, fuelCost))
+  a.neighbours.add((b, fuelCost, roads))
+  b.neighbours.add((a, fuelCost, roads))
+  var newRoads: seq[Road] = @[]
+  for road in mitems(b.neighbours[^1].roads):
+    newRoads.insert(
+      (
+        start: road.finish,
+        finish: road.start,
+        dir:
+          case road.dir
+          of North: South
+          of South: North
+          of East: West
+          of West: East
+      )
+    )
+  b.neighbours[^1].roads = newRoads
 
 proc getBoundingBox(a: MapStop): IntRect =
   return IntRect(
@@ -98,20 +126,124 @@ proc newMap(filename: string): Map =
   let southDocks = createMapStop(result, "South docks", vec2(202, 647))
   let cafe = createMapStop(result, "Cafe Mauds", vec2(186, 431))
 
-  postOffice.link(lighthouse, 2)
-  lighthouse.link(residence, 1)
-  residence.link(cafe, 1)
-  cafe.link(supermarket, 1)
-  cafe.link(southDocks, 1)
-  supermarket.link(lighthouse, 1)
-  supermarket.link(hospital, 1)
-  supermarket.link(residence2, 1)
-  residence2.link(beach, 1)
-  residence2.link(residence3, 1)
-  beach.link(residence3, 1)
-  beach.link(postOffice, 1)
-  residence3.link(fuelStation, 1)
-  fuelStation.link(southDocks, 1)
+  # TODO: Roads
+  postOffice.link(lighthouse, 2,
+    @[
+      (start: postOffice.pos, finish: lighthouse.pos, dir: West)
+    ]
+  )
+  lighthouse.link(residence, 1,
+    @[
+      (start: lighthouse.pos, finish: residence.pos, dir: West)
+    ]
+  )
+  residence.link(cafe, 1,
+    @[
+      (start: residence.pos, finish: vec2(142, 378), dir: South),
+      (start: vec2(142, 377), finish: vec2(185, 378), dir: East),
+      (start: vec2(185, 378), finish: cafe.pos, dir: South)
+    ]
+  )
+  cafe.link(supermarket, 1,
+    @[
+      (start: cafe.pos, finish: vec2(366, 429), dir: East),
+      (start: vec2(366, 429), finish: supermarket.pos, dir: North)
+    ]
+  )
+  cafe.link(southDocks, 1,
+    @[
+      (start: cafe.pos, finish: vec2(186, 597), dir: South),
+      (start: vec2(186, 597), finish: vec2(202, 600), dir: East),
+      (start: vec2(202, 600), finish: southDocks.pos, dir: South)
+    ]
+  )
+  supermarket.link(lighthouse, 1,
+   @[
+      (start: supermarket.pos, finish: lighthouse.pos, dir: North)
+    ]
+  )
+  supermarket.link(hospital, 1,
+    @[
+      (start: supermarket.pos, finish: vec2(366, 263), dir: North),
+      (start: vec2(366, 263), finish: hospital.pos, dir: East),
+    ]
+  )
+  supermarket.link(residence2, 1,
+    @[
+      (start: supermarket.pos, finish: vec2(366, 379), dir: South),
+      (start: vec2(366, 379), finish: vec2(498, 380), dir: East),
+      (start: vec2(498, 380), finish: residence2.pos, dir: South),
+    ]
+  )
+  residence2.link(beach, 1,
+    @[
+      (start: residence2.pos, finish: vec2(498, 380), dir: North),
+      (start: vec2(498, 380), finish: vec2(594, 380), dir: East),
+      (start: vec2(594, 380), finish: vec2(594, 262), dir: North),
+      (start: vec2(594, 262), finish: beach.pos, dir: East),
+    ]
+  )
+  residence2.link(residence3, 1,
+    @[
+      (start: residence2.pos, finish: vec2(498, 380), dir: North),
+      (start: vec2(498, 380), finish: vec2(594, 380), dir: East),
+      (start: vec2(594, 380), finish: vec2(594, 544), dir: South),
+      (start: vec2(594, 544), finish: residence3.pos, dir: East),
+    ]
+  )
+  beach.link(residence3, 1,
+    @[
+      (start: beach.pos, finish: vec2(594, 262), dir: West),
+      (start: vec2(594, 262), finish: vec2(594, 544), dir: South),
+      (start: vec2(594, 544), finish: residence3.pos, dir: East),
+    ]
+  )
+  beach.link(postOffice, 1,
+    @[
+      (start: beach.pos, finish: vec2(594, 262), dir: West),
+      (start: vec2(594, 262), finish: vec2(594, 151), dir: North),
+      (start: vec2(594, 151), finish: postOffice.pos, dir: East),
+    ]
+  )
+  residence3.link(fuelStation, 1,
+    @[
+      (start: residence3.pos, finish: vec2(566, 543), dir: West),
+      (start: vec2(566, 543), finish: vec2(566, 647), dir: South),
+      (start: vec2(566, 647), finish: fuelStation.pos, dir: West),
+    ]
+  )
+  fuelStation.link(southDocks, 1,
+    @[
+      (start: fuelStation.pos, finish: southDocks.pos, dir: West),
+    ]
+  )
+  hospital.link(beach, 1,
+    @[
+      (start: hospital.pos, finish: beach.pos, dir: East),
+    ]
+  )
+  hospital.link(postOffice, 1,
+    @[
+      (start: hospital.pos, finish: vec2(593, 261), dir: East),
+      (start: vec2(593, 261), finish: vec2(593, 152), dir: North),
+      (start: vec2(593, 152), finish: postOffice.pos, dir: East),
+    ]
+  )
+  hospital.link(residence2, 1,
+    @[
+      (start: hospital.pos, finish: vec2(593, 261), dir: East),
+      (start: vec2(593, 261), finish: vec2(593, 379), dir: South),
+      (start: vec2(593, 379), finish: vec2(497, 379), dir: West),
+      (start: vec2(497, 379), finish: residence2.pos, dir: South),
+    ]
+  )
+  hospital.link(residence3, 1,
+    @[
+      (start: hospital.pos, finish: vec2(593, 261), dir: East),
+      (start: vec2(593, 261), finish: vec2(593, 540), dir: South),
+      (start: vec2(593, 540), finish: residence3.pos, dir: East),
+    ]
+  )
 
   # Select post office by default.
   postOffice.isSelected = true
@@ -162,8 +294,61 @@ proc draw(crosshair: Crosshair, target: RenderWindow) =
 proc newTruck(start: MapStop, fuelCapacity=5): Truck =
   result = Truck(
     fuelCapacity: fuelCapacity,
-    currentStop: start
+    currentStop: start,
+    pos: start.pos,
+    dir: West,
+    roadTravelClock: nil
   )
+  for dir in Direction:
+    result.truckTexture[dir] = newTexture(getCurrentDir() / "assets" /
+        "truck_$1.png" % [toLowerAscii($dir)])
+
+proc draw(truck: Truck, target: RenderWindow) =
+  let sprite = newSprite(truck.truckTexture[truck.dir])
+  sprite.position = truck.pos
+  sprite.origin = vec2(16, 19)
+  sprite.scale = vec2(1.5, 1.5)
+
+  target.draw(sprite)
+
+  sprite.destroy()
+
+proc update(truck: Truck) =
+  if not truck.roadTravelClock.isNil:
+    if truck.travellingTo.roads.len == 0:
+      assert false
+    else:
+      let road = truck.travellingTo.roads[0]
+
+      let scale = truck.roadTravelClock.elapsedTime().asMilliseconds() / truckSpeed
+      if scale >= 1:
+        # Movement finished.
+
+        if truck.travellingTo.roads.len == 1:
+          # Travel finished.
+          truck.currentStop = truck.travellingTo.stop
+          truck.pos = truck.travellingTo.stop.pos
+          destroy(truck.roadTravelClock)
+          truck.roadTravelClock = nil
+        else:
+          # Move on to the next road.
+          truck.travellingTo.roads.delete(0)
+          truck.pos = road.finish
+          discard truck.roadTravelClock.restart()
+      else:
+        let diff = road.finish - road.start
+        truck.pos = road.start + (diff*scale)
+      truck.dir = road.dir
+
+proc travel(truck: Truck, stop: MapStop) =
+  # Find appropriate neighbour.
+  var n: Neighbour
+  for neighbour in truck.currentStop.neighbours:
+    if neighbour.stop == stop:
+      n = neighbour
+
+  truck.roadTravelClock = newClock()
+  truck.travellingTo = n
 
 proc centerCameraOn(game: Game, stop: MapStop, smooth: bool) =
   game.camera.moveTo(stop.pos, smooth=smooth)
@@ -245,6 +430,7 @@ proc draw(game: Game) =
     game.window.clear(color(0x19abffff))
     game.window.view = game.camera.view
     game.currentMap.draw(game.window)
+    game.truck.draw(game.window)
 
     game.window.view = game.window.defaultView()
     game.crosshair.draw(game.window)
@@ -289,6 +475,7 @@ proc select(game: Game) =
       else:
         echo("Selected ", closest.name)
         closest.isSelected = not closest.isSelected
+        game.truck.travel(closest)
   of Scene.Title:
     game.currentScene = Scene.Map
     init(game)
@@ -299,6 +486,8 @@ proc update(game: Game) =
 
   # Update camera.
   game.camera.update()
+
+  game.truck.update()
 
 when isMainModule:
   var game = newGame()

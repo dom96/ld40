@@ -435,19 +435,19 @@ proc init(game: Game) =
   game.hud.printDialogue("Well, we're quite quiet here at\nCoastal Postal. In fact, today we\nonly have one package to deliver.\nPerfect for you to practice your skills!")
   game.hud.printDialogue("But first, let me show you around.")
 
-  game.hud.printDialogue("This here is your delivery route guide.\n\nTap 'P' to open it!", customOffset=vec2(20, -(screenSize[1]-200)), customKey=KeyCode.P)
+  game.hud.printDialogue("This here is your delivery route guide.\n\nTap 'P' to open it!", customOffset=vec2(20, -(screenSize[1]-350)), customKey=KeyCode.P)
   game.hud.printDialogue("This is your fuel gauge. For each\nstop you make, you will use one unit of\nfuel. Use your fuel wisely to make your\n deliveries and return to the Post Office",
-                         customOffset=vec2(-10, -(screenSize[1]-290)))
+                         customOffset=vec2(-50, -(screenSize[1]-460)))
   game.hud.printDialogue("This is your clock! It's great to be\npunctual, don't you think? Don't worry\n too much about it for now!",
-                         customOffset=vec2(-10, -(screenSize[1]-340)))
+                         customOffset=vec2(-50, -(screenSize[1]-510)))
   game.hud.printDialogue("Now this last bit is your list of stops.\nYou can visit them in any order- I'll\ncheck them off as you make each\ndelivery!",
-                         customOffset=vec2(110, -(screenSize[1]-400)))
+                         customOffset=vec2(90, -(screenSize[1]-570)))
   game.hud.printDialogue("Please remember: a route is not complete\nuntil you return to the post office.\nOh, and please don't pass a stop\ntwice- it's unprofessional!",
                          proc () {.gcsafe, nosideeffect.} =
                            game.centerCameraOn(game.currentMap.find("Hospital"), true)
                            if game.stats.shown:
                              game.stats.toggle(),
-                         customOffset=vec2(20, -(screenSize[1]-400))
+                         customOffset=vec2(20, -(screenSize[1]-570))
                          )
 
   game.hud.printDialogue("Aaaall of this is a map of the island...\nyour new home! You can use the arrow\nkeys to look around. Head over to\nthe lighthouse now!")

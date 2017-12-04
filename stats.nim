@@ -52,7 +52,7 @@ proc completeDelivery*(stats: Stats, stop: MapStop): bool =
 proc draw*(stats: Stats, target: RenderWindow, font: Font) =
   # Sidepanel
   let panel = newSprite(stats.panel)
-  panel.position = vec2((-stats.panel.size.x).float + 52.0 + stats.xOffset, 50)
+  panel.position = vec2((-stats.panel.size.x).float + 52.0 + stats.xOffset, 220)
   target.draw(panel)
 
   # Fuel

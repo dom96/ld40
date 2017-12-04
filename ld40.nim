@@ -381,13 +381,17 @@ proc moveCamera(game: Game, dir: Vector2f, mag=16.0) =
 
 proc select(game: Game) =
   ## Selects a stop that's under the crosshair.
-  let closest = game.getHoveredMapStop()
+  case game.currentScene
+  of Scene.Map:
+    let closest = game.getHoveredMapStop()
 
-  if closest.isNil:
-    game.hud.setMessage("No stop under cursor.", timeout=2000, primary=false)
-  else:
-    echo("Selected ", closest.name)
-    closest.isSelected = not closest.isSelected
+    if closest.isNil:
+      game.hud.setMessage("No stop under cursor.", timeout=2000, primary=false)
+    else:
+      echo("Selected ", closest.name)
+      closest.isSelected = not closest.isSelected
+  of Scene.Title:
+    game.currentScene = Scene.Map
 
 proc update(game: Game) =
   # Generate the current route.

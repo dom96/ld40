@@ -4,3 +4,4 @@ const messageDisappearTimeout* = 700 # ms
 const textPulse* = 800 # ms
 const dialogueWrite* = 100 # ms
 const messageColour* = 0x5f574fff
+const cameraScrollSpeed* = 1000 # ms

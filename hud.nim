@@ -136,7 +136,9 @@ proc removeMessage*(hud: Hud, primary: bool) =
     discard message.clock.restart()
     message.timeout = messageDisappearTimeout
 
-proc printDialogue*(hud: Hud, message: string, onFinish = proc () = discard) =
+proc defaultCb = discard
+proc printDialogue*(hud: Hud, message: string,
+                    onFinish: proc () {.closure.} = defaultCb) =
   let dialogue = DialogueMessage(
     text: message,
     shown: 0,

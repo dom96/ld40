@@ -2,7 +2,7 @@ import os, math
 
 import csfml, csfml_ext, csfml_window
 
-import utils, consts, hud
+import utils, consts, hud, camera
 
 type
   Scene {.pure.} = enum
@@ -17,7 +17,7 @@ type
   Game = ref object
     window: RenderWindow
     currentMap: Map
-    camera: View
+    camera: Camera
     crosshair: Crosshair
     hud: Hud
     truck: Truck
@@ -147,7 +147,7 @@ proc getWindowPos(crosshair: Crosshair): Vector2i =
   vec2(screenSize[0] div 2, screenSize[1] div 2)
 
 proc getMapPos(crosshair: Crosshair, game: Game): Vector2f =
-  game.window.mapPixelToCoords(getWindowPos(crosshair), game.camera)
+  game.window.mapPixelToCoords(getWindowPos(crosshair), game.camera.view)
 
 proc draw(crosshair: Crosshair, target: RenderWindow) =
   # Cross hair
@@ -165,8 +165,8 @@ proc newTruck(start: MapStop, fuelCapacity=5): Truck =
     currentStop: start
   )
 
-proc centerCameraOn(game: Game, stop: MapStop) =
-  game.camera.center = stop.pos
+proc centerCameraOn(game: Game, stop: MapStop, smooth: bool) =
+  game.camera.moveTo(stop.pos, smooth=smooth)
 
 proc newTitle(font: Font): Title =
   result = Title(
@@ -212,34 +212,38 @@ proc draw(title: Title, target: RenderWindow) =
 
   destroy(sprite)
 
+proc init(game: Game) =
+  game.hud.printDialogue("This is the Post office...",
+    proc () {.gcsafe, nosideeffect.} =
+      game.centerCameraOn(game.currentMap.stops[1], true))
+  game.hud.printDialogue("Your task is to move packages from the\n post office to people's homes")
+
 proc newGame(): Game =
   result = Game(
     window: newRenderWindow(videoMode(screenSize[0], screenSize[1]), "LD40",
                             WindowStyle.Titlebar or WindowStyle.Close),
     currentMap: newMap(getCurrentDir() / "assets" / "map.png"),
     crosshair: newCrosshair(getCurrentDir() / "assets" / "crosshair.png"),
-    camera: newView(),
+    camera: newCamera(),
     hud: newHud(),
     currentScene: Scene.Map#Scene.Title, TODO
   )
 
   result.truck = newTruck(getStart(result.currentMap))
 
-  result.camera.zoom(0.5)
   result.window.framerateLimit = 60
 
-  result.centerCameraOn(result.truck.currentStop)
+  result.centerCameraOn(result.truck.currentStop, false)
 
   result.title = newTitle(result.hud.font)
 
-  result.hud.printDialogue("This is the Post office...")
-  result.hud.printDialogue("your task is to move packages from the\n post office to people's homes")
+  init(result) # TODO
 
 proc draw(game: Game) =
   case game.currentScene
   of Scene.Map:
     game.window.clear(color(0x19abffff))
-    game.window.view = game.camera
+    game.window.view = game.camera.view
     game.currentMap.draw(game.window)
 
     game.window.view = game.window.defaultView()
@@ -264,7 +268,7 @@ proc getHoveredMapStop(game: Game): MapStop =
   return closest
 
 proc moveCamera(game: Game, dir: Vector2f, mag=16.0) =
-  game.camera.move(dir*mag)
+  game.camera.moveBy(dir*mag)
 
   # Show primary message when hovered over button.
   let closest = game.getHoveredMapStop()
@@ -287,10 +291,14 @@ proc select(game: Game) =
         closest.isSelected = not closest.isSelected
   of Scene.Title:
     game.currentScene = Scene.Map
+    init(game)
 
 proc update(game: Game) =
-  # Generate the current route.
+  # Update dialogs.
   game.hud.update()
+
+  # Update camera.
+  game.camera.update()
 
 when isMainModule:
   var game = newGame()

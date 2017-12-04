@@ -2,7 +2,7 @@ import os, math, strutils, options
 
 import csfml, csfml_ext, csfml_window
 
-import utils, consts, hud, camera
+import utils, consts, hud, camera, stats, truck
 
 type
   Scene {.pure.} = enum
@@ -23,25 +23,7 @@ type
     truck: Truck
     currentScene: Scene
     title: Title
-
-  Direction = enum
-    North, East, South, West
-
-  Road = tuple
-    start, finish: Vector2i
-    dir: Direction
-
-  Neighbour = tuple
-    stop: MapStop
-    fuelCost: int
-    roads: seq[Road]
-
-  MapStop = ref object
-    name: string
-    pos: Vector2i # Relative to map
-    neighbours: seq[Neighbour]
-    isDepot: bool
-    isSelected: bool
+    stats: Stats
 
   Map = ref object
     texture: Texture
@@ -53,14 +35,6 @@ type
   Crosshair = ref object
     texture: Texture
 
-  Truck = ref object
-    fuelCapacity: int
-    currentStop: MapStop
-    pos: Vector2f
-    dir: Direction
-    truckTexture: array[Direction, Texture]
-    travellingTo: Neighbour
-    roadTravelClock: Clock
 
 proc createMapStop(map: Map, name: string, pos: Vector2i): MapStop =
   map.stops.add(
@@ -304,9 +278,10 @@ proc draw(crosshair: Crosshair, target: RenderWindow) =
   target.draw(sprite)
   sprite.destroy()
 
-proc newTruck(start: MapStop, fuelCapacity=5): Truck =
+proc newTruck(start: MapStop, fuelCapacity=4): Truck =
   result = Truck(
     fuelCapacity: fuelCapacity,
+    fuel: fuelCapacity,
     currentStop: start,
     pos: start.pos,
     dir: West,
@@ -430,6 +405,7 @@ proc newGame(): Game =
     crosshair: newCrosshair(getCurrentDir() / "assets" / "crosshair.png"),
     camera: newCamera(),
     hud: newHud(),
+    stats: newStats(),
     currentScene: Scene.Map#Scene.Title, TODO
   )
 
@@ -453,7 +429,9 @@ proc draw(game: Game) =
 
     game.window.view = game.window.defaultView()
     game.crosshair.draw(game.window)
+    game.stats.draw(game.window)
     game.hud.draw(game.window)
+
   of Scene.Title:
     game.title.draw(game.window)
 
@@ -494,9 +472,6 @@ proc select(game: Game) =
       else:
         echo("Selected ", closest.name)
 
-
-
-
         if game.truck.currentStop == closest:
           game.hud.setMessage("Already at the $1." % closest.name,
                               timeout=2000, primary=false)
@@ -533,6 +508,8 @@ proc update(game: Game) =
 
   game.truck.update()
 
+  game.stats.update(game.truck)
+
 when isMainModule:
   var game = newGame()
 
@@ -554,6 +531,8 @@ when isMainModule:
           game.moveCamera(vec2(0, -1))
         of KeyCode.Space:
           game.select()
+        of KeyCode.P:
+          game.stats.toggle()
         else: discard
 
     game.update()

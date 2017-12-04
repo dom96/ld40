@@ -2,6 +2,27 @@ import csfml_util, csfml
 
 import math
 
+type
+  Direction* = enum
+    North, East, South, West
+
+  Road* = tuple
+    start, finish: Vector2i
+    dir: Direction
+
+  Neighbour* = tuple
+    stop: MapStop
+    fuelCost: int
+    roads: seq[Road]
+
+  MapStop* = ref object
+    name*: string
+    pos*: Vector2i # Relative to map
+    neighbours*: seq[Neighbour]
+    isDepot*: bool
+    isSelected*: bool
+
+
 converter toCint*(x: int): cint = x.cint
 
 proc `or`*(a, b: BitMaskU32): BitMaskU32 = BitMaskU32(uint32(a) or uint32(b))

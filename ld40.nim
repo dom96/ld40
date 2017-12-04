@@ -29,7 +29,9 @@ type
     hour: int
 
   Map = ref object
-    texture: Texture
+    texture: seq[Texture]
+    currentTexture: int
+    cycleClock: Clock
     sprite: Sprite
     selectedMapStop: Texture
     deselectedMapStop: Texture
@@ -85,15 +87,19 @@ proc find(map: Map, name: string): MapStop =
   assert false
 
 proc newMap(filename: string): Map =
+  let basePath = getCurrentDir() / "assets"
   result = Map(
-    texture: newTexture(filename),
+    texture: @[newTexture(basePath / "map.png"), newTexture(basePath / "map_waves.png")],
     sprite: newSprite(),
-    selectedMapStop: newTexture(filename.splitFile.dir / "selected_stop.png"),
-    deselectedMapStop: newTexture(filename.splitFile.dir / "deselected_stop.png"),
-    stops: @[]
+    selectedMapStop: newTexture(basePath / "selected_stop.png"),
+    deselectedMapStop: newTexture(basePath / "deselected_stop.png"),
+    stops: @[],
+    cycleClock: newClock()
   )
-  result.texture.smooth = false
-  result.sprite.texture = result.texture
+  for texture in result.texture:
+    texture.smooth = false
+
+  result.sprite.texture = result.texture[0]
 
   # Define default map stops.
   let residence = createMapStop(result, "The Roswell Residence", vec2(142, 150))
@@ -258,6 +264,14 @@ proc draw(map: Map, target: RenderWindow) =
     target.draw(sprite)
     sprite.destroy()
 
+proc update(map: Map) =
+  if map.cycleClock.elapsedTime().asMilliseconds() >= waves:
+    discard map.cycleClock.restart()
+    map.currentTexture.inc()
+    if map.currentTexture >= map.texture.len:
+      map.currentTexture = 0
+    map.sprite.texture = map.texture[map.currentTexture]
+
 proc getStart(map: Map): MapStop =
   for stop in map.stops:
     if stop.isDepot:
@@ -300,7 +314,11 @@ proc newTruck(start: MapStop, fuelCapacity=4): Truck =
 proc draw(truck: Truck, target: RenderWindow) =
   let sprite = newSprite(truck.truckTexture[truck.dir])
   sprite.position = truck.pos
-  sprite.origin = vec2(16, 19)
+  case truck.dir
+  of East, West:
+    sprite.origin = vec2(16, 19)
+  of South, North:
+    sprite.origin = vec2(7, 32)
   sprite.scale = vec2(1.5, 1.5)
 
   target.draw(sprite)
@@ -599,6 +617,8 @@ proc update(game: Game) =
   game.truck.update(game)
 
   game.stats.update(game.truck, game.level, game.hour)
+
+  game.currentMap.update()
 
 when isMainModule:
   var game = newGame()

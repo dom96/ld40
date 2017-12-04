@@ -8,6 +8,8 @@ const screenSize = (1024, 1024)
 const mapStopSize = (32, 32)
 const messageDisappearTimeout = 700 # ms
 const textPulse = 800 # ms
+const dialogueWrite = 100 # ms
+const messageColour = 0x5f574fff
 
 type
   Scene {.pure.} = enum
@@ -55,11 +57,19 @@ type
     clock: Clock
     timeout: int # ms, -1 for infinite
 
+  DialogueMessage = ref object
+    text: string
+    shown: int
+    clock: Clock
+    onFinish: proc ()
+    next: DialogueMessage
+
   Hud = ref object
     currentRoute: Text
     font: Font
     primaryMessage: Message
     secondaryMessage: Message
+    dialogue: DialogueMessage
 
   Truck = ref object
     fuelCapacity: int
@@ -205,7 +215,7 @@ proc draw(hud: Hud, target: RenderWindow) =
     # We need this so that the scaling happens from the middle.
     scaleMiddle(fill, fill.size)
 
-    fill.fillColor = color(0x5f574fff)
+    fill.fillColor = color(messageColour)
     fill.outlineColor = color(0x5f574faa)
     fill.outlineThickness = 4
 
@@ -235,6 +245,35 @@ proc draw(hud: Hud, target: RenderWindow) =
   if not hud.secondaryMessage.isNil:
     drawMessage(hud.secondaryMessage, isPrimary=false)
 
+  if not hud.dialogue.isNil:
+    let margin = (screenSize[0] div 6)
+    let fill = newRectangleShape(vec2(
+      screenSize[0] - margin,
+      150
+    ))
+
+    var fillPos = vec2(
+      margin div 2,
+      screenSize[1] - margin
+    )
+    fill.position = fillPos
+    fill.fillColor = color(messageColour)
+    fill.outlineColor = color(0x5f574faa)
+    fill.outlineThickness = 4
+
+    let text = newText(hud.dialogue.text[0 .. hud.dialogue.shown], hud.font, 20)
+    text.position = vec2(
+      fillPos.x + (fill.size.x.int div 2),
+      fillPos.y + (fill.size.y.int div 2),
+    )
+    text.origin = vec2(text.localBounds.width / 2, text.localBounds.height / 2)
+
+    target.draw(fill)
+    target.draw(text)
+
+    fill.destroy()
+    text.destroy()
+
 proc setMessage(hud: Hud, text: string, timeout = -1, primary=true) =
   let message = Message(
     text: text,
@@ -258,6 +297,23 @@ proc removeMessage(hud: Hud, primary: bool) =
     discard message.clock.restart()
     message.timeout = messageDisappearTimeout
 
+proc printDialogue(hud: Hud, message: string, onFinish = proc () = discard) =
+  let dialogue = DialogueMessage(
+    text: message,
+    shown: 0,
+    clock: newClock(),
+    onFinish: onFinish
+  )
+  if hud.dialogue.isNil:
+    hud.dialogue = dialogue
+  else:
+    # Append to the end of our queue.
+    var current = hud.dialogue
+    while not current.next.isNil:
+      current = current.next
+
+    current.next = dialogue
+
 proc update(hud: Hud) =
   # Using addr here is a bit hacky, but then again this is Ludum Dare.
   for message in [addr hud.primaryMessage, addr hud.secondaryMessage]:
@@ -267,6 +323,26 @@ proc update(hud: Hud) =
             message.timeout:
           message[] = nil
 
+  if not hud.dialogue.isNil:
+    if hud.dialogue.clock.elapsedTime().asMilliseconds() >= dialogueWrite:
+      discard hud.dialogue.clock.restart()
+      hud.dialogue.shown.inc()
+      if hud.dialogue.shown > hud.dialogue.text.len:
+        hud.dialogue.shown = hud.dialogue.text.len
+
+proc inProgress(dialogue: DialogueMessage): bool =
+  return dialogue.shown != dialogue.text.len
+
+proc select(hud: Hud): bool =
+  ## Returns whether the event was handled by the HUD.
+  result = false
+  if not hud.dialogue.isNil:
+    if hud.dialogue.inProgress():
+      hud.dialogue.shown = hud.dialogue.text.len
+    else:
+      hud.dialogue.onFinish()
+      hud.dialogue = hud.dialogue.next
+    result = true
 
 proc newTruck(start: MapStop, fuelCapacity=5): Truck =
   result = Truck(
@@ -329,7 +405,7 @@ proc newGame(): Game =
     crosshair: newCrosshair(getCurrentDir() / "assets" / "crosshair.png"),
     camera: newView(),
     hud: newHud(),
-    currentScene: Scene.Title,
+    currentScene: Scene.Map#Scene.Title, TODO
   )
 
   result.truck = newTruck(getStart(result.currentMap))
@@ -340,6 +416,9 @@ proc newGame(): Game =
   result.centerCameraOn(result.truck.currentStop)
 
   result.title = newTitle(result.hud.font)
+
+  result.hud.printDialogue("This is the Post office...")
+  result.hud.printDialogue("your task is to move packages from the\n post office to people's homes")
 
 proc draw(game: Game) =
   case game.currentScene
@@ -383,13 +462,14 @@ proc select(game: Game) =
   ## Selects a stop that's under the crosshair.
   case game.currentScene
   of Scene.Map:
-    let closest = game.getHoveredMapStop()
+    if not game.hud.select():
+      let closest = game.getHoveredMapStop()
 
-    if closest.isNil:
-      game.hud.setMessage("No stop under cursor.", timeout=2000, primary=false)
-    else:
-      echo("Selected ", closest.name)
-      closest.isSelected = not closest.isSelected
+      if closest.isNil:
+        game.hud.setMessage("No stop under cursor.", timeout=2000, primary=false)
+      else:
+        echo("Selected ", closest.name)
+        closest.isSelected = not closest.isSelected
   of Scene.Title:
     game.currentScene = Scene.Map
 

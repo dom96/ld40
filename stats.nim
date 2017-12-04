@@ -31,6 +31,10 @@ proc newStats*(): Stats =
   )
   result.fuelBar = newSprite(result.fuel)
 
+proc reset*(stats: Stats) =
+  for delivery in mitems(stats.tasks.deliveries):
+    delivery[0] = false
+
 proc setTasks*(stats: Stats, stops: seq[MapStop]) =
   stats.tasks = Tasks(
     deliveries: @[]

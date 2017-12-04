@@ -308,6 +308,7 @@ proc draw(truck: Truck, target: RenderWindow) =
   sprite.destroy()
 
 proc nextLevel(game: Game)
+proc reset(game: Game)
 proc update(truck: Truck, game: Game) =
   if not truck.roadTravelClock.isNil:
     if truck.travellingTo.roads.len == 0:
@@ -336,6 +337,12 @@ proc update(truck: Truck, game: Game) =
               nextLevel(game)
             else:
               game.hud.printDialogue("Drats! You haven't delivered all\nthe packages!")
+          else:
+            if truck.fuel == 0:
+              game.hud.printDialogue("uh-oh, you're out of fuel.",
+                proc () =
+                  reset(game)
+              )
 
           truck.currentStop = truck.travellingTo.stop
           truck.pos = truck.travellingTo.stop.pos
@@ -416,6 +423,9 @@ proc reset(game: Game) =
   game.hour = 9
   game.truck = newTruck(game.currentMap.getStart())
   game.centerCameraOn(game.truck.currentStop, false)
+  for stop in game.currentMap.stops:
+    stop.isSelected = false
+  game.stats.reset()
 
 proc init(game: Game) =
   # This is essentially the tutorial level.

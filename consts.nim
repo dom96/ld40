@@ -8,3 +8,5 @@ const cameraScrollSpeed* = 1000 # ms
 const truckSpeed* = 1200 # ms # TODO: replace this
 
 const statsToggleSpeed* = 700 # ms
+
+const nextLevelFadeSpeed* = 1500 # ms

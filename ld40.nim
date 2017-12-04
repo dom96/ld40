@@ -24,6 +24,8 @@ type
     currentScene: Scene
     title: Title
     stats: Stats
+    level: int
+    nextLevelFade: Clock
 
   Map = ref object
     texture: Texture
@@ -304,6 +306,7 @@ proc draw(truck: Truck, target: RenderWindow) =
 
   sprite.destroy()
 
+proc nextLevel(game: Game)
 proc update(truck: Truck, game: Game) =
   if not truck.roadTravelClock.isNil:
     if truck.travellingTo.roads.len == 0:
@@ -323,6 +326,14 @@ proc update(truck: Truck, game: Game) =
           if game.stats.completeDelivery(truck.travellingTo.stop):
             game.hud.setMessage("You've delivered a package!",
                                 timeout=2000, primary=false)
+          if truck.travellingTo.stop.isDepot:
+            # We're in the post office!
+            # Determine whether the deliveries have all been completed.
+            if pendingDeliveries(game.stats) == 0:
+              # Next level.
+              nextLevel(game)
+            else:
+              game.hud.printDialogue("Drats! You haven't delivered all\nthe packages!")
 
           truck.currentStop = truck.travellingTo.stop
           truck.pos = truck.travellingTo.stop.pos
@@ -399,13 +410,31 @@ proc draw(title: Title, target: RenderWindow) =
 
   destroy(sprite)
 
+proc reset(game: Game) =
+  game.truck = newTruck(game.currentMap.getStart())
+  game.centerCameraOn(game.truck.currentStop, false)
+
 proc init(game: Game) =
+  # This is essentially the tutorial level.
   game.stats.setTasks(@[game.currentMap.find("Lighthouse")])
 
   game.hud.printDialogue("This is the Post office...",
     proc () {.gcsafe, nosideeffect.} =
       game.centerCameraOn(game.currentMap.stops[1], true))
   game.hud.printDialogue("Your task is to move packages from the\n post office to people's homes")
+
+proc nextLevel(game: Game) =
+  game.hud.printDialogue("You've completed puzzle number " & $(game.level+1))
+  game.nextLevelFade = newClock()
+  case game.level:
+  of 0:
+    game.stats.setTasks(@[game.currentMap.find("Lighthouse"),
+                          game.currentMap.find("Hospital")])
+    discard
+  else:
+    game.hud.printDialogue("You appear to have completed the game, nice!")
+
+  # TODO: Destroy clock.
 
 proc newGame(): Game =
   result = Game(
@@ -438,6 +467,15 @@ proc draw(game: Game) =
     game.truck.draw(game.window)
 
     game.window.view = game.window.defaultView()
+    if not game.nextLevelFade.isNil:
+      var scale = game.nextLevelFade.elapsedTime().asMilliseconds() / nextLevelFadeSpeed
+      scale = min(scale, 1)
+      let fill = newRectangleShape(vec2(screenSize[0], screenSize[1]))
+      fill.position = vec2(0, 0)
+      fill.fillColor = color(0.uint8, 0.uint8, 0.uint8, uint8(220*scale))
+      game.window.draw(fill)
+      destroy(fill)
+
     game.crosshair.draw(game.window)
     game.stats.draw(game.window, game.hud.font)
     game.hud.draw(game.window)
@@ -548,6 +586,9 @@ when isMainModule:
           game.select()
         of KeyCode.P:
           game.stats.toggle()
+        of KeyCode.N:
+          # TODO: Remove.
+          game.nextLevel()
         else: discard
 
     game.update()

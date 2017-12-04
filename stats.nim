@@ -79,7 +79,8 @@ proc draw*(stats: Stats, target: RenderWindow, font: Font) =
 
     destroy(checkbox)
     destroy(text)
-    destroy(panel)
+
+  destroy(panel)
 
 proc toggle*(stats: Stats) =
   stats.shown = not stats.shown
@@ -120,3 +121,9 @@ proc update*(stats: Stats, truck: Truck) =
 
   stats.fuelBar.scale = vec2(4 / truck.fuelCapacity, 1)
   stats.fuelBars = truck.fuel
+
+proc pendingDeliveries*(stats: Stats): int =
+  result = 0
+  for task in stats.tasks.deliveries:
+    if not task[0]:
+      result.inc()

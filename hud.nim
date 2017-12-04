@@ -16,6 +16,8 @@ type
     clock: Clock
     onFinish: proc ()
     next: DialogueMessage
+    customOffset: Vector2f
+    customKey: KeyCode
 
   Hud* = ref object
     currentRoute: Text
@@ -94,7 +96,7 @@ proc draw*(hud: Hud, target: RenderWindow) =
     var fillPos = vec2(
       margin div 2,
       screenSize[1] - margin
-    )
+    ) + hud.dialogue.customOffset
     fill.position = fillPos
     fill.fillColor = color(messageColour)
     fill.outlineColor = color(0x5f574faa)
@@ -102,8 +104,8 @@ proc draw*(hud: Hud, target: RenderWindow) =
 
     let text = newText(hud.dialogue.text[0 .. hud.dialogue.shown], hud.font, 20)
     text.position = vec2(
-      fillPos.x + (fill.size.x.int div 2),
-      fillPos.y + (fill.size.y.int div 2),
+      fillPos.x + float(fill.size.x.int div 2),
+      fillPos.y + float(fill.size.y.int div 2),
     )
     text.origin = vec2(text.localBounds.width / 2, text.localBounds.height / 2)
 
@@ -137,13 +139,18 @@ proc removeMessage*(hud: Hud, primary: bool) =
     message.timeout = messageDisappearTimeout
 
 proc defaultCb = discard
+let defaultOffset = vec2(0.0, 0.0)
 proc printDialogue*(hud: Hud, message: string,
-                    onFinish: proc () {.closure.} = defaultCb) =
+                    onFinish: proc () {.closure.} = defaultCb,
+                    customOffset = defaultOffset,
+                    customKey = KeyCode.Space) =
   let dialogue = DialogueMessage(
     text: message,
     shown: 0,
     clock: newClock(),
-    onFinish: onFinish
+    onFinish: onFinish,
+    customOffset: customOffset,
+    customKey: customKey
   )
   if hud.dialogue.isNil:
     hud.dialogue = dialogue
@@ -174,10 +181,11 @@ proc update*(hud: Hud) =
 proc inProgress(dialogue: DialogueMessage): bool =
   return dialogue.shown != dialogue.text.len
 
-proc select*(hud: Hud): bool =
+proc select*(hud: Hud, key: KeyCode): bool =
   ## Returns whether the event was handled by the HUD.
   result = false
   if not hud.dialogue.isNil:
+    if key != hud.dialogue.customKey: return true # Prevent space.
     if hud.dialogue.inProgress():
       hud.dialogue.shown = hud.dialogue.text.len
     else:

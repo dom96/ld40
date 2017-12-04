@@ -13,7 +13,7 @@ type
     fuel: Texture
     ticks: Texture
     xOffset: float # Current x offset (used for showing the panel)
-    shown: bool
+    shown*: bool
     smoothToggleClock: Clock
     fuelBar: Sprite
     fuelBars: int

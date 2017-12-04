@@ -418,18 +418,35 @@ proc init(game: Game) =
   # This is essentially the tutorial level.
   game.stats.setTasks(@[game.currentMap.find("Lighthouse")])
 
-  game.hud.printDialogue("This is the Post office...",
-    proc () {.gcsafe, nosideeffect.} =
-      game.centerCameraOn(game.currentMap.stops[1], true))
-  game.hud.printDialogue("Your task is to move packages from the\n post office to people's homes")
+  game.hud.printDialogue("Hello! Welcome to Coastal Island. I\nhear the Post Office sent you to\nbe our new postie!")
+  game.hud.printDialogue("Well, we're quite quiet here at\nCoastal Postal. In fact, today we\nonly have one package to deliver.\nPerfect for you to practice your skills!")
+  game.hud.printDialogue("But first, let me show you around.")
+
+  game.hud.printDialogue("This here is your delivery route guide.\n\nTap 'P' to open it!", customOffset=vec2(20, -(screenSize[1]-200)), customKey=KeyCode.P)
+  game.hud.printDialogue("This is your fuel gauge. For each\nstop you make, you will use one unit of\nfuel. Use your fuel wisely to make your\n deliveries and return to the Post Office",
+                         customOffset=vec2(-10, -(screenSize[1]-290)))
+  game.hud.printDialogue("This is your clock! It's great to be\npunctual, don't you think? Don't worry\n too much about it for now!",
+                         customOffset=vec2(-10, -(screenSize[1]-340)))
+  game.hud.printDialogue("Now this last bit is your list of stops.\nYou can visit them in any order- I'll\ncheck them off as you make each\ndelivery!",
+                         customOffset=vec2(110, -(screenSize[1]-400)))
+  game.hud.printDialogue("Please remember: a route is not complete\nuntil you return to the post office.\nOh, and please don't pass a stop\ntwice- it's unprofessional!",
+                         proc () {.gcsafe, nosideeffect.} =
+                           game.centerCameraOn(game.currentMap.find("Hospital"), true)
+                           if game.stats.shown:
+                             game.stats.toggle(),
+                         customOffset=vec2(20, -(screenSize[1]-400))
+                         )
+
+  game.hud.printDialogue("Aaaall of this is a map of the island...\nyour new home! You can use the arrow\nkeys to look around. Head over to\nthe lighthouse now!")
 
 proc nextLevel(game: Game) =
-  game.hud.printDialogue("You've completed puzzle number " & $(game.level+1))
+  game.hud.printDialogue("You've completed puzzle number " & $(game.level))
   game.nextLevelFade = newClock()
   case game.level:
-  of 0:
+  of 1: # Level 0 cannot occur because level increases when hovered over lighthouse.
     game.stats.setTasks(@[game.currentMap.find("Lighthouse"),
                           game.currentMap.find("Hospital")])
+    reset(game)
     discard
   else:
     game.hud.printDialogue("You appear to have completed the game, nice!")
@@ -508,11 +525,17 @@ proc moveCamera(game: Game, dir: Vector2f, mag=16.0) =
   else:
     game.hud.setMessage(closest.name, primary=true)
 
+    # For tutorial purposes and as sanctioned by Amy's script :)
+    if game.level == 0 and game.stats.pendingDeliveries != 0 and
+       closest.name.toLowerAscii() == "lighthouse":
+      game.level.inc()
+      game.hud.printDialogue("Great work! Now press the space bar\nto select the stop. Once your van\ngets there, it's up to you to get\nback to the Post Office. Good luck!")
+
 proc select(game: Game) =
   ## Selects a stop that's under the crosshair.
   case game.currentScene
   of Scene.Map:
-    if not game.hud.select():
+    if not game.hud.select(KeyCode.Space):
       let closest = game.getHoveredMapStop()
 
       if closest.isNil:
@@ -585,6 +608,7 @@ when isMainModule:
         of KeyCode.Space:
           game.select()
         of KeyCode.P:
+          discard game.hud.select(event.key.code)
           game.stats.toggle()
         of KeyCode.N:
           # TODO: Remove.

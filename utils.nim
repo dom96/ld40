@@ -1,5 +1,7 @@
 import csfml_util, csfml
 
+import math
+
 converter toCint*(x: int): cint = x.cint
 
 proc `or`*(a, b: BitMaskU32): BitMaskU32 = BitMaskU32(uint32(a) or uint32(b))
@@ -15,3 +17,6 @@ proc rfind*[T](a: seq[T], item: T): int =
 proc scaleMiddle*[T](a: T, size: Vector2f) =
   a.origin = vec2(size.x / 2, size.y / 2)
   a.position = vec2(a.position.x + a.origin.x, a.position.y + a.origin.y)
+
+proc length*(a: Vector2i | Vector2f): float =
+  return sqrt(float(a.x*a.x + a.y*a.y))

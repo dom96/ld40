@@ -1,4 +1,4 @@
-import os, math, strutils
+import os, math, strutils, options
 
 import csfml, csfml_ext, csfml_window
 
@@ -126,7 +126,6 @@ proc newMap(filename: string): Map =
   let southDocks = createMapStop(result, "South docks", vec2(202, 647))
   let cafe = createMapStop(result, "Cafe Mauds", vec2(186, 431))
 
-  # TODO: Roads
   postOffice.link(lighthouse, 2,
     @[
       (start: postOffice.pos, finish: lighthouse.pos, dir: West)
@@ -148,6 +147,14 @@ proc newMap(filename: string): Map =
     @[
       (start: cafe.pos, finish: vec2(366, 429), dir: East),
       (start: vec2(366, 429), finish: supermarket.pos, dir: North)
+    ]
+  )
+  cafe.link(residence2, 1,
+    @[
+      (start: cafe.pos, finish: vec2(366, 429), dir: East),
+      (start: vec2(366, 429), finish: vec2(366, 379), dir: North),
+      (start: vec2(366, 379), finish: vec2(498, 379), dir: East),
+      (start: vec2(498, 379), finish: residence2.pos, dir: South),
     ]
   )
   cafe.link(southDocks, 1,
@@ -244,6 +251,12 @@ proc newMap(filename: string): Map =
       (start: vec2(593, 540), finish: residence3.pos, dir: East),
     ]
   )
+  hospital.link(lighthouse, 1,
+    @[
+      (start: hospital.pos, finish: vec2(365, 262), dir: West),
+      (start: vec2(365, 262), finish: lighthouse.pos, dir: North),
+    ]
+  )
 
   # Select post office by default.
   postOffice.isSelected = true
@@ -319,8 +332,10 @@ proc update(truck: Truck) =
       assert false
     else:
       let road = truck.travellingTo.roads[0]
+      let diff = road.finish - road.start
+      let dist = diff.length
 
-      let scale = truck.roadTravelClock.elapsedTime().asMilliseconds() / truckSpeed
+      let scale = truck.roadTravelClock.elapsedTime().asMilliseconds().float / (10*dist)
       if scale >= 1:
         # Movement finished.
 
@@ -336,17 +351,21 @@ proc update(truck: Truck) =
           truck.pos = road.finish
           discard truck.roadTravelClock.restart()
       else:
-        let diff = road.finish - road.start
         truck.pos = road.start + (diff*scale)
       truck.dir = road.dir
 
-proc travel(truck: Truck, stop: MapStop) =
-  # Find appropriate neighbour.
-  var n: Neighbour
-  for neighbour in truck.currentStop.neighbours:
-    if neighbour.stop == stop:
-      n = neighbour
+proc findNeighbour(truck: Truck, target: MapStop): Option[Neighbour] =
+  result = none(Neighbour)
 
+  for neighbour in truck.currentStop.neighbours:
+    if neighbour.stop == target:
+      result = some(neighbour)
+
+proc isTravelling(truck: Truck): bool =
+  not truck.roadTravelClock.isNil
+
+proc travel(truck: Truck, n: Neighbour) =
+  assert(not isTravelling(truck))
   truck.roadTravelClock = newClock()
   truck.travellingTo = n
 
@@ -474,8 +493,33 @@ proc select(game: Game) =
         game.hud.setMessage("No stop under cursor.", timeout=2000, primary=false)
       else:
         echo("Selected ", closest.name)
-        closest.isSelected = not closest.isSelected
-        game.truck.travel(closest)
+
+
+
+
+        if game.truck.currentStop == closest:
+          game.hud.setMessage("Already at the $1." % closest.name,
+                              timeout=2000, primary=false)
+          return
+
+        if game.truck.travellingTo.stop == closest:
+          game.hud.setMessage("You're already travelling here." % closest.name,
+                              timeout=2000, primary=false)
+          return
+
+        # Verify we're not currently travelling.
+        if game.truck.isTravelling():
+          game.hud.setMessage("You cannot change course.", timeout=2000, primary=false)
+          return
+
+        # Verify that this is a stop we can go to.
+        let neighbour = findNeighbour(game.truck, closest)
+        if neighbour.isNone():
+          game.hud.setMessage("You cannot move here right now.", timeout=2000, primary=false)
+          return
+
+        closest.isSelected = true
+        game.truck.travel(neighbour.get())
   of Scene.Title:
     game.currentScene = Scene.Map
     init(game)

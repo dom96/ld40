@@ -75,6 +75,12 @@ proc getBoundingBox(a: MapStop): IntRect =
     height: mapStopSize[1]
   )
 
+proc find(map: Map, name: string): MapStop =
+  for stop in map.stops:
+    if stop.name == name: return stop
+
+  assert false
+
 proc newMap(filename: string): Map =
   result = Map(
     texture: newTexture(filename),
@@ -301,7 +307,7 @@ proc draw(truck: Truck, target: RenderWindow) =
 
   sprite.destroy()
 
-proc update(truck: Truck) =
+proc update(truck: Truck, game: Game) =
   if not truck.roadTravelClock.isNil:
     if truck.travellingTo.roads.len == 0:
       assert false
@@ -316,6 +322,11 @@ proc update(truck: Truck) =
 
         if truck.travellingTo.roads.len == 1:
           # Travel finished.
+          truck.fuel.dec(truck.travellingTo.fuelCost)
+          if game.stats.completeDelivery(truck.travellingTo.stop):
+            game.hud.setMessage("You've delivered a package!",
+                                timeout=2000, primary=false)
+
           truck.currentStop = truck.travellingTo.stop
           truck.pos = truck.travellingTo.stop.pos
           destroy(truck.roadTravelClock)
@@ -392,6 +403,8 @@ proc draw(title: Title, target: RenderWindow) =
   destroy(sprite)
 
 proc init(game: Game) =
+  game.stats.setTasks(@[game.currentMap.find("Lighthouse")])
+
   game.hud.printDialogue("This is the Post office...",
     proc () {.gcsafe, nosideeffect.} =
       game.centerCameraOn(game.currentMap.stops[1], true))
@@ -429,7 +442,7 @@ proc draw(game: Game) =
 
     game.window.view = game.window.defaultView()
     game.crosshair.draw(game.window)
-    game.stats.draw(game.window)
+    game.stats.draw(game.window, game.hud.font)
     game.hud.draw(game.window)
 
   of Scene.Title:
@@ -506,7 +519,7 @@ proc update(game: Game) =
   # Update camera.
   game.camera.update()
 
-  game.truck.update()
+  game.truck.update(game)
 
   game.stats.update(game.truck)
 

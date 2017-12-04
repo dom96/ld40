@@ -11,11 +11,13 @@ type
   Stats* = ref object
     panel: Texture
     fuel: Texture
+    ticks: Texture
     xOffset: float # Current x offset (used for showing the panel)
     shown: bool
     smoothToggleClock: Clock
     fuelBar: Sprite
     fuelBars: int
+    tasks: Tasks
 
 const maxOffset = 256
 
@@ -23,22 +25,61 @@ proc newStats*(): Stats =
   result = Stats(
     panel: newTexture(getCurrentDir() / "assets" / "stats.png"),
     fuel: newTexture(getCurrentDir() / "assets" / "fuel_bars.png"),
+    ticks: newTexture(getCurrentDir() / "assets" / "ticks.png"),
   )
   result.fuelBar = newSprite(result.fuel)
 
-proc draw*(stats: Stats, target: RenderWindow) =
+proc setTasks*(stats: Stats, stops: seq[MapStop]) =
+  stats.tasks = Tasks(
+    deliveries: @[]
+  )
+
+  for stop in stops:
+    stats.tasks.deliveries.add((false, stop))
+
+proc completeDelivery*(stats: Stats, stop: MapStop): bool =
+  for i in 0..<stats.tasks.deliveries.len:
+    if stats.tasks.deliveries[i][1] == stop:
+      stats.tasks.deliveries[i][0] = true
+      return true
+
+proc draw*(stats: Stats, target: RenderWindow, font: Font) =
+  # Sidepanel
   let panel = newSprite(stats.panel)
   panel.position = vec2((-stats.panel.size.x).float + 52.0 + stats.xOffset, 50)
   target.draw(panel)
 
-  destroy(panel)
-
+  # Fuel
   for i in 0..<stats.fuelBars:
     stats.fuelBar.position = vec2(
       panel.position.x + (24 + float(50*stats.fuelBar.scale.x*i.float)),
       panel.position.y + 18
     )
     target.draw(stats.fuelBar)
+
+  # Tasks.
+  for i in 0..<stats.tasks.deliveries.len:
+    let (completed, stop) = stats.tasks.deliveries[i]
+    let checkbox = newSprite(stats.ticks)
+    if completed:
+      checkbox.textureRect = IntRect(left: 0, top: 0, width: 24, height: 24)
+    else:
+      checkbox.textureRect = IntRect(left: 27, top: 0, width: 20, height: 24)
+
+    checkbox.position = vec2(
+      panel.position.x + 30,
+      panel.position.y + 201 + float(i*33)
+    )
+    target.draw(checkbox)
+
+    let text = newText(stop.name, font, 10)
+    text.position = checkbox.position + vec2(cfloat(checkbox.textureRect.width + 10), 10)
+    text.color = Black
+    target.draw(text)
+
+    destroy(checkbox)
+    destroy(text)
+    destroy(panel)
 
 proc toggle*(stats: Stats) =
   stats.shown = not stats.shown

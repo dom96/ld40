@@ -1,0 +1,5 @@
+#!/bin/sh
+
+cd "$(dirname "$0")"
+pwd
+DYLD_LIBRARY_PATH=./lib/ ./ld40

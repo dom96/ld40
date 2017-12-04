@@ -26,6 +26,7 @@ type
     stats: Stats
     level: int
     nextLevelFade: Clock
+    hour: int
 
   Map = ref object
     texture: Texture
@@ -323,6 +324,7 @@ proc update(truck: Truck, game: Game) =
         if truck.travellingTo.roads.len == 1:
           # Travel finished.
           truck.fuel.dec(truck.travellingTo.fuelCost)
+          game.hour.inc()
           if game.stats.completeDelivery(truck.travellingTo.stop):
             game.hud.setMessage("You've delivered a package!",
                                 timeout=2000, primary=false)
@@ -411,6 +413,7 @@ proc draw(title: Title, target: RenderWindow) =
   destroy(sprite)
 
 proc reset(game: Game) =
+  game.hour = 9
   game.truck = newTruck(game.currentMap.getStart())
   game.centerCameraOn(game.truck.currentStop, false)
 
@@ -450,7 +453,7 @@ proc nextLevel(game: Game) =
     discard
   else:
     game.hud.printDialogue("You appear to have completed the game, nice!")
-
+  game.level.inc()
   # TODO: Destroy clock.
 
 proc newGame(): Game =
@@ -462,6 +465,7 @@ proc newGame(): Game =
     camera: newCamera(),
     hud: newHud(),
     stats: newStats(),
+    hour: 9,
     currentScene: Scene.Map#Scene.Title, TODO
   )
 
@@ -584,7 +588,7 @@ proc update(game: Game) =
 
   game.truck.update(game)
 
-  game.stats.update(game.truck)
+  game.stats.update(game.truck, game.level, game.hour)
 
 when isMainModule:
   var game = newGame()

@@ -1,4 +1,4 @@
-import os
+import os, strutils
 
 import csfml
 
@@ -18,6 +18,8 @@ type
     fuelBar: Sprite
     fuelBars: int
     tasks: Tasks
+    hour: int
+    day: string
 
 const maxOffset = 256
 
@@ -80,6 +82,13 @@ proc draw*(stats: Stats, target: RenderWindow, font: Font) =
     destroy(checkbox)
     destroy(text)
 
+  # Clock
+  var text = newText("$#: $#:00" % [stats.day, $stats.hour], font, 18)
+  text.position = vec2(panel.position.x + 20, panel.position.y + 72)
+  text.color = color(0x3d3d3dff)
+  target.draw(text)
+  destroy(text)
+
   destroy(panel)
 
 proc toggle*(stats: Stats) =
@@ -88,7 +97,7 @@ proc toggle*(stats: Stats) =
 
   discard stats.smoothToggleClock.restart()
 
-proc update*(stats: Stats, truck: Truck) =
+proc update*(stats: Stats, truck: Truck, level, hour: int) =
   if not stats.smoothToggleClock.isNil:
     let time = stats.smoothToggleClock.elapsedTime().asMilliseconds()
     if time > statsToggleSpeed:
@@ -102,7 +111,6 @@ proc update*(stats: Stats, truck: Truck) =
       stats.xOffset = maxOffset*scale
       if not stats.shown:
         stats.xOffset = maxOffset-stats.xOffset
-
 
   # Fuel
   let perc = truck.fuel / truck.fuelCapacity
@@ -121,6 +129,18 @@ proc update*(stats: Stats, truck: Truck) =
 
   stats.fuelBar.scale = vec2(4 / truck.fuelCapacity, 1)
   stats.fuelBars = truck.fuel
+
+  # Clock
+  stats.day =
+    case level
+    of 0, 1: "Mon"
+    of 2: "Tue"
+    of 3: "Wed"
+    of 4: "Thu"
+    of 5: "Fri"
+    of 6: "Mon"
+    else: "Hol"
+  stats.hour = hour
 
 proc pendingDeliveries*(stats: Stats): int =
   result = 0

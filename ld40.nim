@@ -238,9 +238,6 @@ proc newMap(filename: string): Map =
     ]
   )
 
-  # Select post office by default.
-  postOffice.isSelected = true
-
 proc draw(map: Map, target: RenderWindow) =
   target.draw(map.sprite)
 
@@ -487,6 +484,11 @@ proc select(game: Game) =
 
         if game.truck.currentStop == closest:
           game.hud.setMessage("Already at the $1." % closest.name,
+                              timeout=2000, primary=false)
+          return
+
+        if closest.isSelected:
+          game.hud.setMessage("You've visited the $1" % closest.name,
                               timeout=2000, primary=false)
           return
 

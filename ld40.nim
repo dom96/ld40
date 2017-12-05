@@ -459,7 +459,8 @@ proc init(game: Game) =
   game.hud.printDialogue("Well, we're quite quiet here at\nCoastal Postal. In fact, today we\nonly have one package to deliver.\nPerfect for you to practice your skills!")
   game.hud.printDialogue("But first, let me show you around.")
 
-  game.hud.printDialogue("This here is your delivery route guide.\n\nTap 'P' to open it!", customOffset=vec2(20, -(screenSize[1]-350)), customKey=KeyCode.P)
+  game.hud.printDialogue("This here is your delivery route guide.\n\nTap 'P' to open it!",
+    customOffset=vec2(20, -(screenSize[1]-350)), customKey=KeyCode.P)
   game.hud.printDialogue("This is your fuel gauge. For each\nstop you make, you will use one unit of\nfuel. Use your fuel wisely to make your\n deliveries and return to the Post Office",
                          customOffset=vec2(-50, -(screenSize[1]-460)))
   game.hud.printDialogue("This is your clock! It's great to be\npunctual, don't you think? Don't worry\n too much about it for now!",
@@ -477,16 +478,19 @@ proc init(game: Game) =
   game.hud.printDialogue("Aaaall of this is a map of the island...\nyour new home! You can use the arrow\nkeys to look around. Head over to\nthe lighthouse now!")
 
 proc nextLevel(game: Game) =
-  game.hud.printDialogue("You've completed puzzle number " & $(game.level))
+  game.hud.printDialogue("You've completed puzzle number " & $(game.level),
+    proc () =
+      destroy(game.nextLevelFade)
+      game.nextLevelFade = nil
+  )
   game.nextLevelFade = newClock()
   case game.level:
   of 1: # Level 0 cannot occur because level increases when hovered over lighthouse.
     game.stats.setTasks(@[game.currentMap.find("Lighthouse"),
                           game.currentMap.find("Hospital")])
     reset(game)
-    discard
   else:
-    game.hud.printDialogue("You appear to have completed the game, nice!")
+    game.hud.printDialogue("You have completed the game, nice!")
   game.level.inc()
   # TODO: Destroy clock.
 

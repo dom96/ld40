@@ -21,6 +21,7 @@ type
     neighbours*: seq[Neighbour]
     isDepot*: bool
     isSelected*: bool
+    isFuelStation*: bool
 
 
 converter toCint*(x: int): cint = x.cint

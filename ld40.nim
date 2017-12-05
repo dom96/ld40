@@ -114,12 +114,18 @@ proc newMap(filename: string): Map =
   let residence2 = createMapStop(result, "Old Dairy", vec2(499, 420))
   let residence3 = createMapStop(result, "Flower Cottage", vec2(638, 543))
   let fuelStation = createMapStop(result, "Fuel station", vec2(499, 647))
+  fuelStation.isFuelStation = true
   let southDocks = createMapStop(result, "South docks", vec2(202, 647))
   let cafe = createMapStop(result, "Cafe Mauds", vec2(186, 431))
 
-  postOffice.link(lighthouse, 2,
+  postOffice.link(lighthouse, 1,
     @[
       (start: postOffice.pos, finish: lighthouse.pos, dir: West)
+    ]
+  )
+  postOffice.link(residence, 1, # For puzzle 5 as requested by Amy
+    @[
+      (start: postOffice.pos, finish: residence.pos, dir: West)
     ]
   )
   lighthouse.link(residence, 1,
@@ -187,6 +193,16 @@ proc newMap(filename: string): Map =
       (start: vec2(498, 380), finish: vec2(594, 380), dir: East),
       (start: vec2(594, 380), finish: vec2(594, 544), dir: South),
       (start: vec2(594, 544), finish: residence3.pos, dir: East),
+    ]
+  )
+  residence2.link(fuelStation, 1,
+    @[
+      (start: residence2.pos, finish: vec2(498, 380), dir: North),
+      (start: vec2(498, 380), finish: vec2(594, 380), dir: East),
+      (start: vec2(594, 380), finish: vec2(594, 544), dir: South),
+      (start: vec2(594, 544), finish: vec2(565, 544), dir: West),
+      (start: vec2(565, 544), finish: vec2(565, 645), dir: South),
+      (start: vec2(565, 645), finish: fuelStation.pos, dir: West),
     ]
   )
   beach.link(residence3, 1,
@@ -300,7 +316,7 @@ proc draw(crosshair: Crosshair, target: RenderWindow) =
   target.draw(sprite)
   sprite.destroy()
 
-proc newTruck(start: MapStop, fuelCapacity=4): Truck =
+proc newTruck(start: MapStop, fuelCapacity=10): Truck =
   result = Truck(
     fuelCapacity: fuelCapacity,
     fuel: fuelCapacity,
@@ -346,6 +362,11 @@ proc update(truck: Truck, game: Game) =
           # Travel finished.
           truck.fuel.dec(truck.travellingTo.fuelCost)
           game.hour.inc()
+          if truck.travellingTo.stop.isFuelStation:
+            truck.fuel.inc(4)
+            game.hud.setMessage("Refuelled!",
+                                timeout=2000, primary=false)
+
           if game.stats.completeDelivery(truck.travellingTo.stop):
             game.hud.setMessage("You've delivered a package!",
                                 timeout=2000, primary=false)
@@ -368,6 +389,17 @@ proc update(truck: Truck, game: Game) =
           truck.pos = truck.travellingTo.stop.pos
           destroy(truck.roadTravelClock)
           truck.roadTravelClock = nil
+
+          # Detect becoming stuck.
+          var stuck = true
+          for n in truck.currentStop.neighbours:
+            if not n.stop.isSelected:
+              stuck = false
+          if stuck:
+            game.hud.printDialogue("uh-oh, you're stuck.",
+              proc () =
+                reset(game)
+            )
         else:
           # Move on to the next road.
           truck.travellingTo.roads.delete(0)

@@ -304,7 +304,7 @@ proc getWindowPos(crosshair: Crosshair): Vector2i =
   vec2(screenSize[0] div 2, screenSize[1] div 2)
 
 proc getMapPos(crosshair: Crosshair, game: Game): Vector2f =
-  game.window.mapPixelToCoords(getWindowPos(crosshair), game.camera.view)
+  return game.camera.view.center
 
 proc draw(crosshair: Crosshair, target: RenderWindow) =
   # Cross hair

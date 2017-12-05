@@ -13,6 +13,7 @@ type
     titleClock: Clock
     titleText: Text
     lastTransparency: float
+    exit: bool
 
   Game = ref object
     window: RenderWindow
@@ -413,6 +414,11 @@ proc newTitle(font: Font): Title =
 proc draw(title: Title, target: RenderWindow) =
   target.clear(color(0x1d3564ff))
 
+  if title.exit:
+    title.titleText.strC = "   Press space to exit.\nAll progress will be lost!"
+  else:
+    title.titleText.strC = "Press space to begin"
+
   let sprite = newSprite(title.titleTexture)
   sprite.scale = vec2(
     screenSize[0] / title.titleTexture.size.x,
@@ -604,6 +610,9 @@ proc select(game: Game) =
         closest.isSelected = true
         game.truck.travel(neighbour.get())
   of Scene.Title:
+    if game.title.exit:
+      game.window.close()
+
     game.currentScene = Scene.Map
     init(game)
 
@@ -625,8 +634,7 @@ when isMainModule:
 
   while game.window.open:
     for event in game.window.events:
-      if event.kind == EventType.Closed or
-        (event.kind == EventType.KeyPressed and event.key.code == KeyCode.Escape):
+      if event.kind == EventType.Closed:
           game.window.close()
 
       if event.kind == EventType.KeyPressed:
@@ -647,6 +655,16 @@ when isMainModule:
         of KeyCode.N:
           # TODO: Remove.
           game.nextLevel()
+        of KeyCode.Escape:
+          case game.currentScene
+          of Scene.Title:
+            if game.title.exit:
+              game.currentScene = Scene.Map
+            else:
+              game.window.close()
+          of Scene.Map:
+            game.currentScene = Scene.Title
+            game.title.exit = true
         else: discard
 
     game.update()

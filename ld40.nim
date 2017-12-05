@@ -316,7 +316,7 @@ proc draw(crosshair: Crosshair, target: RenderWindow) =
   target.draw(sprite)
   sprite.destroy()
 
-proc newTruck(start: MapStop, fuelCapacity=10): Truck =
+proc newTruck(start: MapStop, fuelCapacity=4): Truck =
   result = Truck(
     fuelCapacity: fuelCapacity,
     fuel: fuelCapacity,

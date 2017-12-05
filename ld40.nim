@@ -698,6 +698,11 @@ proc update(game: Game) =
   game.currentMap.update()
 
 when isMainModule:
+  if paramCount() > 0:
+    # the first parameter specifies the assets location.
+    let newWD = paramStr(1)
+    setCurrentDir(newWD)
+
   var game = newGame()
 
   while game.window.open:

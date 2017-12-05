@@ -1,4 +1,8 @@
 const screenSize* = (1024, 1024)
+when defined(windows) or defined(linux):
+  const globalScale* = 0.5
+else:
+  const globalScale* = 1
 const mapStopSize* = (32, 32)
 const messageDisappearTimeout* = 700 # ms
 const textPulse* = 800 # ms

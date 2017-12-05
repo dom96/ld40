@@ -53,7 +53,7 @@ proc draw*(stats: Stats, target: RenderWindow, font: Font) =
   # Sidepanel
   let panel = newSprite(stats.panel)
   panel.position = vec2((-stats.panel.size.x).float + 52.0 + stats.xOffset, 220)
-  target.draw(panel)
+  target.drawScaled(panel)
 
   # Fuel
   for i in 0..<stats.fuelBars:
@@ -61,7 +61,7 @@ proc draw*(stats: Stats, target: RenderWindow, font: Font) =
       panel.position.x + (24 + float(50*stats.fuelBar.scale.x*i.float)),
       panel.position.y + 18
     )
-    target.draw(stats.fuelBar)
+    target.drawScaled(stats.fuelBar)
 
   # Tasks.
   for i in 0..<stats.tasks.deliveries.len:
@@ -76,12 +76,12 @@ proc draw*(stats: Stats, target: RenderWindow, font: Font) =
       panel.position.x + 30,
       panel.position.y + 201 + float(i*33)
     )
-    target.draw(checkbox)
+    target.drawScaled(checkbox)
 
     let text = newText(stop.name, font, 10)
     text.position = checkbox.position + vec2(cfloat(checkbox.textureRect.width + 10), 10)
     text.color = Black
-    target.draw(text)
+    target.drawScaled(text)
 
     destroy(checkbox)
     destroy(text)
@@ -90,7 +90,7 @@ proc draw*(stats: Stats, target: RenderWindow, font: Font) =
   var text = newText("$#: $#:00" % [stats.day, $stats.hour], font, 18)
   text.position = vec2(panel.position.x + 20, panel.position.y + 72)
   text.color = color(0x3d3d3dff)
-  target.draw(text)
+  target.drawScaled(text)
   destroy(text)
 
   destroy(panel)

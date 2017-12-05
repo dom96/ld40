@@ -76,10 +76,10 @@ proc link(a, b: MapStop, fuelCost: int, roads: seq[Road] = @[]) =
 
 proc getBoundingBox(a: MapStop): IntRect =
   return IntRect(
-    left: a.pos.x - (mapStopSize[0] div 2),
-    top: a.pos.y - (mapStopSize[1] div 2),
-    width: mapStopSize[0],
-    height: mapStopSize[1]
+    left: int((a.pos.x - (mapStopSize[0] div 2)).float * globalScale),
+    top: int((a.pos.y - (mapStopSize[1] div 2)).float * globalScale),
+    width: int(mapStopSize[0].float * globalScale),
+    height: int(mapStopSize[1].float * globalScale)
   )
 
 proc find(map: Map, name: string): MapStop =
@@ -266,7 +266,7 @@ proc newMap(filename: string): Map =
   )
 
 proc draw(map: Map, target: RenderWindow) =
-  target.draw(map.sprite)
+  target.drawScaled(map.sprite)
 
   # Draw each map stop sprite.
   # TODO: Should we recycle sprites?
@@ -279,7 +279,7 @@ proc draw(map: Map, target: RenderWindow) =
       sprite.position = sprite.position + vec2(0.0, 4.0)
     else:
       sprite.texture = map.deselectedMapStop
-    target.draw(sprite)
+    target.drawScaled(sprite)
     sprite.destroy()
 
 proc update(map: Map) =
@@ -301,7 +301,7 @@ proc newCrosshair(filename: string): Crosshair =
   )
 
 proc getWindowPos(crosshair: Crosshair): Vector2i =
-  vec2(screenSize[0] div 2, screenSize[1] div 2)
+  return vec2(int(screenSize[0] div 2), int(screenSize[1] div 2))
 
 proc getMapPos(crosshair: Crosshair, game: Game): Vector2f =
   return game.camera.view.center
@@ -313,7 +313,7 @@ proc draw(crosshair: Crosshair, target: RenderWindow) =
   sprite.origin = vec2(16, 16)
   sprite.position = getWindowPos(crosshair)
   sprite.scale = vec2(3, 3)
-  target.draw(sprite)
+  target.drawScaled(sprite)
   sprite.destroy()
 
 proc newTruck(start: MapStop, fuelCapacity=4): Truck =
@@ -339,7 +339,7 @@ proc draw(truck: Truck, target: RenderWindow) =
     sprite.origin = vec2(7, 32)
   sprite.scale = vec2(1.5, 1.5)
 
-  target.draw(sprite)
+  target.drawScaled(sprite)
 
   sprite.destroy()
 
@@ -457,7 +457,7 @@ proc draw(title: Title, target: RenderWindow) =
     screenSize[0] / title.titleTexture.size.x,
     screenSize[1] / title.titleTexture.size.y
   )
-  target.draw(sprite)
+  target.drawScaled(sprite)
 
   var scale = (title.titleClock.elapsedTime().asMilliseconds() / textPulse) / 2
   if title.titleClock.elapsedTime().asMilliseconds() <= textPulse:
@@ -471,8 +471,8 @@ proc draw(title: Title, target: RenderWindow) =
     discard title.titleClock.restart()
     title.lastTransparency = title.titleText.color.a.int / 255
 
-  target.draw(sprite)
-  target.draw(title.titleText)
+  target.drawScaled(sprite)
+  target.drawScaled(title.titleText)
 
   destroy(sprite)
 
@@ -557,7 +557,8 @@ proc nextLevel(game: Game) =
 
 proc newGame(): Game =
   result = Game(
-    window: newRenderWindow(videoMode(screenSize[0], screenSize[1]), "LD40",
+    window: newRenderWindow(videoMode(int(screenSize[0].float*globalScale),
+                                      int(screenSize[1].float*globalScale)), "LD40",
                             WindowStyle.Titlebar or WindowStyle.Close),
     currentMap: newMap(getCurrentDir() / "assets" / "map.png"),
     crosshair: newCrosshair(getCurrentDir() / "assets" / "crosshair.png"),
@@ -611,7 +612,6 @@ proc draw(game: Game) =
 proc getHoveredMapStop(game: Game): MapStop =
   ## Returns nil when nothing is under the crosshair.
   let crosshairPos = game.crosshair.getMapPos(game)
-
   # We need to find the closest stop.
   var closest: MapStop = nil
   for stop in game.currentMap.stops:

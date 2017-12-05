@@ -1,6 +1,7 @@
 import csfml_util, csfml
 
 import math
+import consts
 
 type
   Direction* = enum
@@ -42,3 +43,12 @@ proc scaleMiddle*[T](a: T, size: Vector2f) =
 
 proc length*(a: Vector2i | Vector2f): float =
   return sqrt(float(a.x*a.x + a.y*a.y))
+
+proc drawScaled*[T](target: RenderWindow, obj: T) =
+  let original = obj.scale
+  let position = obj.position
+  obj.scale = obj.scale * globalScale
+  obj.position = position * globalScale
+  target.draw(obj)
+  obj.scale = original
+  obj.position = position

@@ -75,8 +75,8 @@ proc draw*(hud: Hud, target: RenderWindow) =
         fill.scale = vec2(scale, scale)
         text.scale = vec2(scale, scale)
 
-    target.draw(fill)
-    target.draw(text)
+    target.drawScaled(fill)
+    target.drawScaled(text)
 
     fill.destroy()
     text.destroy()
@@ -109,8 +109,8 @@ proc draw*(hud: Hud, target: RenderWindow) =
     )
     text.origin = vec2(text.localBounds.width / 2, text.localBounds.height / 2)
 
-    target.draw(fill)
-    target.draw(text)
+    target.drawScaled(fill)
+    target.drawScaled(text)
 
     fill.destroy()
     text.destroy()

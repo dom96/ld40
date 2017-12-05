@@ -546,7 +546,6 @@ proc nextLevel(game: Game) =
   else:
     game.hud.printDialogue("You have completed the game, nice!")
   game.level.inc()
-  # TODO: Destroy clock.
 
 proc newGame(): Game =
   result = Game(
@@ -559,7 +558,7 @@ proc newGame(): Game =
     stats: newStats(),
     hour: 9,
     music: newMusic(getCurrentDir() / "assets" / "7th_Floor_Tango.ogg"),
-    currentScene: Scene.Map#Scene.Title, TODO
+    currentScene: Scene.Title
   )
 
   result.truck = newTruck(getStart(result.currentMap))
@@ -569,8 +568,6 @@ proc newGame(): Game =
   result.centerCameraOn(result.truck.currentStop, false)
 
   result.title = newTitle(result.hud.font)
-
-  init(result) # TODO
 
   result.music.play()
   result.music.loop = true
@@ -716,8 +713,8 @@ when isMainModule:
           discard game.hud.select(event.key.code)
           game.stats.toggle()
         of KeyCode.N:
-          # TODO: Remove.
-          game.nextLevel()
+          discard
+          # game.nextLevel()
         of KeyCode.M:
           if game.music.status() == Playing:
             game.music.pause()

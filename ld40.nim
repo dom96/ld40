@@ -104,7 +104,7 @@ proc newMap(filename: string): Map =
   result.sprite.texture = result.texture[0]
 
   # Define default map stops.
-  let residence = createMapStop(result, "The Roswell Residence", vec2(142, 150))
+  let residence = createMapStop(result, "Roswell Residence", vec2(142, 150))
   let lighthouse = createMapStop(result, "Lighthouse", vec2(367, 150))
   let postOffice = createMapStop(result, "Post Office", vec2(620, 150))
   postOffice.isDepot = true
@@ -344,7 +344,7 @@ proc draw(truck: Truck, target: RenderWindow) =
   sprite.destroy()
 
 proc nextLevel(game: Game)
-proc reset(game: Game)
+proc reset(game: Game, fuelCapacity: int)
 proc update(truck: Truck, game: Game) =
   if not truck.roadTravelClock.isNil:
     if truck.travellingTo.roads.len == 0:
@@ -382,7 +382,7 @@ proc update(truck: Truck, game: Game) =
             if truck.fuel == 0:
               game.hud.printDialogue("uh-oh, you're out of fuel.",
                 proc () =
-                  reset(game)
+                  reset(game, game.truck.fuelCapacity)
               )
 
           truck.currentStop = truck.travellingTo.stop
@@ -398,7 +398,7 @@ proc update(truck: Truck, game: Game) =
           if stuck:
             game.hud.printDialogue("uh-oh, you're stuck.",
               proc () =
-                reset(game)
+                reset(game, game.truck.fuelCapacity)
             )
         else:
           # Move on to the next road.
@@ -476,9 +476,9 @@ proc draw(title: Title, target: RenderWindow) =
 
   destroy(sprite)
 
-proc reset(game: Game) =
+proc reset(game: Game, fuelCapacity: int) =
   game.hour = 9
-  game.truck = newTruck(game.currentMap.getStart())
+  game.truck = newTruck(game.currentMap.getStart(), fuelCapacity)
   game.centerCameraOn(game.truck.currentStop, false)
   for stop in game.currentMap.stops:
     stop.isSelected = false
@@ -518,10 +518,31 @@ proc nextLevel(game: Game) =
   )
   game.nextLevelFade = newClock()
   case game.level:
+  of 0: discard
   of 1: # Level 0 cannot occur because level increases when hovered over lighthouse.
     game.stats.setTasks(@[game.currentMap.find("Lighthouse"),
                           game.currentMap.find("Hospital")])
-    reset(game)
+    reset(game, 4)
+    game.hud.printDialogue("Hey! The Doctor saw you passing yesterday\nand wondered if you could make a delivery\nwhen you pass today.")
+  of 2:
+    game.stats.setTasks(@[game.currentMap.find("Hospital"),
+                          game.currentMap.find("Lighthouse"),
+                          game.currentMap.find("Supermarket")])
+    reset(game, 4)
+    game.hud.printDialogue("Heck, this list is getting longer by the day!\nYou have enough fuel to make a stop at\nthe supermarket, right?")
+  of 3:
+    game.stats.setTasks(@[game.currentMap.find("Flower Cottage"),
+                          game.currentMap.find("Lighthouse"),
+                          game.currentMap.find("Supermarket")])
+    reset(game, 4)
+    game.hud.printDialogue("Heck, this list is getting longer by the day!\nYou have enough fuel to make a stop at\nthe supermarket, right?")
+  of 4:
+    game.stats.setTasks(@[game.currentMap.find("Supermarket"),
+                          game.currentMap.find("Cafe Mauds"),
+                          game.currentMap.find("Roswell Residence"),
+                          game.currentMap.find("Hospital")])
+    reset(game, 5)
+    game.hud.printDialogue("I can’t believe you’ve been here a whole week.\nIt feels like you started 10 minutes\nago! And today is your busiest yet!")
   else:
     game.hud.printDialogue("You have completed the game, nice!")
   game.level.inc()

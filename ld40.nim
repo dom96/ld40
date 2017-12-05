@@ -1,6 +1,6 @@
 import os, math, strutils, options
 
-import csfml, csfml_ext, csfml_window
+import csfml, csfml_ext, csfml_window, csfml_audio
 
 import utils, consts, hud, camera, stats, truck
 
@@ -28,6 +28,7 @@ type
     level: int
     nextLevelFade: Clock
     hour: int
+    music: Music
 
   Map = ref object
     texture: seq[Texture]
@@ -504,6 +505,7 @@ proc newGame(): Game =
     hud: newHud(),
     stats: newStats(),
     hour: 9,
+    music: newMusic(getCurrentDir() / "assets" / "7th_Floor_Tango.ogg"),
     currentScene: Scene.Map#Scene.Title, TODO
   )
 
@@ -516,6 +518,10 @@ proc newGame(): Game =
   result.title = newTitle(result.hud.font)
 
   init(result) # TODO
+
+  result.music.play()
+  result.music.loop = true
+  result.music.volume = 30
 
 proc draw(game: Game) =
   case game.currentScene
@@ -659,6 +665,11 @@ when isMainModule:
         of KeyCode.N:
           # TODO: Remove.
           game.nextLevel()
+        of KeyCode.M:
+          if game.music.status() == Playing:
+            game.music.pause()
+          else:
+            game.music.play()
         of KeyCode.Escape:
           case game.currentScene
           of Scene.Title:

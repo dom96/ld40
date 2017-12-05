@@ -142,7 +142,8 @@ proc update*(stats: Stats, truck: Truck, level, hour: int) =
     of 3: "Wed"
     of 4: "Thu"
     of 5: "Fri"
-    of 6: "Mon"
+    of 6: "Sat"
+    of 7: "Sun"
     else: "Hol"
   stats.hour = hour
 

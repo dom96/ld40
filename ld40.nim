@@ -508,7 +508,11 @@ proc init(game: Game) =
                          customOffset=vec2(20, -(screenSize[1]-570))
                          )
 
-  game.hud.printDialogue("Aaaall of this is a map of the island...\nyour new home! You can use the arrow\nkeys to look around. Head over to\nthe lighthouse now!")
+  game.hud.printDialogue("Aaaall of this is a map of the island...\nyour new home! You can use the arrow\nkeys to look around. Head over to\nthe lighthouse now!",
+                         proc () {.gcsafe, nosideeffect.} =
+                           if not game.stats.shown:
+                             game.stats.toggle()
+  )
 
 proc nextLevel(game: Game) =
   game.hud.printDialogue("You've completed puzzle number " & $(game.level),
@@ -529,20 +533,20 @@ proc nextLevel(game: Game) =
                           game.currentMap.find("Lighthouse"),
                           game.currentMap.find("Supermarket")])
     reset(game, 4)
-    game.hud.printDialogue("Heck, this list is getting longer by the day!\nYou have enough fuel to make a stop at\nthe supermarket, right?")
+    game.hud.printDialogue("Heck, this list is getting longer by the\nday! You have enough fuel to make a stop at\nthe supermarket, right?")
   of 3:
     game.stats.setTasks(@[game.currentMap.find("Flower Cottage"),
                           game.currentMap.find("Lighthouse"),
                           game.currentMap.find("Supermarket")])
     reset(game, 4)
-    game.hud.printDialogue("Heck, this list is getting longer by the day!\nYou have enough fuel to make a stop at\nthe supermarket, right?")
+    game.hud.printDialogue("This is the busiest we’ve been in months!\nA delivery all the way on the other side\nof the island- you must be popular.")
   of 4:
     game.stats.setTasks(@[game.currentMap.find("Supermarket"),
                           game.currentMap.find("Cafe Mauds"),
                           game.currentMap.find("Roswell Residence"),
                           game.currentMap.find("Hospital")])
     reset(game, 5)
-    game.hud.printDialogue("I can’t believe you’ve been here a whole week.\nIt feels like you started 10 minutes\nago! And today is your busiest yet!")
+    game.hud.printDialogue("I can't believe you've been here a whole\nweek. It feels like you started 10 minutes\nago! And today is your busiest yet!")
   else:
     game.hud.printDialogue("You have completed the game, nice!")
   game.level.inc()

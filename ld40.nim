@@ -533,13 +533,13 @@ proc nextLevel(game: Game) =
                           game.currentMap.find("Lighthouse"),
                           game.currentMap.find("Supermarket")])
     reset(game, 4)
-    game.hud.printDialogue("Heck, this list is getting longer by the\nday! You have enough fuel to make a stop at\nthe supermarket, right?")
+    game.hud.printDialogue("Heck, this list is getting longer by the\nday! You have enough fuel to make a\n stop at the supermarket, right?")
   of 3:
     game.stats.setTasks(@[game.currentMap.find("Flower Cottage"),
                           game.currentMap.find("Lighthouse"),
                           game.currentMap.find("Supermarket")])
     reset(game, 4)
-    game.hud.printDialogue("This is the busiest we’ve been in months!\nA delivery all the way on the other side\nof the island- you must be popular.")
+    game.hud.printDialogue("This is the busiest we've been in months!\nA delivery all the way on the other side\nof the island- you must be popular.")
   of 4:
     game.stats.setTasks(@[game.currentMap.find("Supermarket"),
                           game.currentMap.find("Cafe Mauds"),
@@ -548,7 +548,11 @@ proc nextLevel(game: Game) =
     reset(game, 5)
     game.hud.printDialogue("I can't believe you've been here a whole\nweek. It feels like you started 10 minutes\nago! And today is your busiest yet!")
   else:
-    game.hud.printDialogue("You have completed the game, nice!")
+    game.hud.printDialogue("You have completed the game, nice!",
+      proc () =
+        game.currentScene = Scene.Title
+    )
+
   game.level.inc()
 
 proc newGame(): Game =
